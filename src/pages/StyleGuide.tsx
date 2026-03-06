@@ -1,7 +1,5 @@
 import Button from '../common/components/Button';
 import Card from '../common/components/Card';
-import Sidebar from '../common/components/Sidebar';
-import Input from '../common/components/Input';
 import '../styles/globalStyles.css';
 const StyleGuide = () => {
   // Styles used within this guide to organize sections
@@ -69,7 +67,7 @@ const StyleGuide = () => {
               </label>
               <textarea 
                 placeholder="Tell us about yourself..." 
-                rows="3"
+                rows={3}
                 style={inputBaseStyle}
               ></textarea>
             </div>
@@ -93,7 +91,7 @@ const inputBaseStyle = {
   width: '100%'
 };
 
-const ColorBlock = ({ color, name }) => (
+const ColorBlock = ({ color, name }: { color: string; name: string }) => (
   <div style={{ textAlign: 'center' }}>
     <div style={{ 
       backgroundColor: color, 

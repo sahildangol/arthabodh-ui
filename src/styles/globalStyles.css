@@ -18,6 +18,7 @@
   --navbar-bg: #0A1E3D;
   --navbar-text: #ffffff;
   --navbar-primary: #0d8a82;
+  --navbar-primary-hover: #96bdbd;
 
   
   /* Spacing Scale*/
@@ -51,6 +52,19 @@ button {
   border: none;
   background: none;
   font: inherit; /* Inherits the body font instead of browser default */
+}
+.button-primary{
+  background-color: var(--navbar-bg);
+  color: var(--navbar-text);
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  transition: all 0.3s ease-in-out;
+}
+.button-primary:hover {
+  background-color: var(--navbar-primary-hover);
+ transform: translateY(-1px);
+ box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  color: var(--navbar-text);
 }
 
 a {

@@ -1,9 +1,9 @@
 import React from 'react';
 
-const Card = ({ title, children }) => {
+const Card = ({ title, children }: { title?: string; children: React.ReactNode }) => {
   return (
     <div style={{
-      backgroundColor: 'var(--primary)', // White based on your tokens
+      backgroundColor: 'var(--primary)', 
       border: '1px solid var(--secondary)',
       borderRadius: '8px',
       padding: 'var(--space-lg)',
