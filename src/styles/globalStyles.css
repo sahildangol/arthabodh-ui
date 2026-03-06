@@ -1,0 +1,92 @@
+/* Apply to everything no border or padding or margin */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* design tokens */
+:root {
+  /* Colors */
+  --primary: #ffffff;
+  --secondary: #cddcf3;
+  --accent: #b8b5b0;
+  --background: #f5f7fa;
+  --text-base: #000000;
+
+  /* NAVBAR */
+  --navbar-bg: #0A1E3D;
+  --navbar-text: #ffffff;
+  --navbar-primary: #0d8a82;
+
+  
+  /* Spacing Scale*/
+  --space-sm: 0.5rem;   /* 8px */
+  --space-md: 1rem;     /* 16px */
+  --space-lg: 2rem;     /* 32px */
+}
+
+/* fonts and typography */
+html {
+  font-size: 16px; /* Base size */
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.5;
+  color: var(--text-base);
+  background-color: var(--background);
+}
+
+/* Make images easy to work with */
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+}
+
+/*better html compoenents */
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font: inherit; /* Inherits the body font instead of browser default */
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+input, textarea {
+  font: inherit;
+  width: 100%;
+}
+
+/* Utility and Helper classes */
+
+/* The standard page container */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 var(--space-md);
+}
+
+/* Quick centering */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+inputBaseStyle {
+  padding: 0.6rem;
+  border: 1px solid var(--accent);
+  border: 4px;
+  background: var(--primary);
+  color: var(--text-base);
+  width: 100%;
+  outline: none; 
+};
