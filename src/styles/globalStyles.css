@@ -1,5 +1,7 @@
 /* Apply to everything no border or padding or margin */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -15,16 +17,15 @@
   --text-base: #000000;
 
   /* NAVBAR */
-  --navbar-bg: #0A1E3D;
+  --navbar-bg: #0a1e3d;
   --navbar-text: #ffffff;
   --navbar-primary: #0d8a82;
   --navbar-primary-hover: #96bdbd;
 
-  
   /* Spacing Scale*/
-  --space-sm: 0.5rem;   /* 8px */
-  --space-md: 1rem;     /* 16px */
-  --space-lg: 2rem;     /* 32px */
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 2rem;
 }
 
 /* fonts and typography */
@@ -34,14 +35,18 @@ html {
 }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
   line-height: 1.5;
   color: var(--text-base);
   background-color: var(--background);
 }
 
 /* Make images easy to work with */
-img, picture, video, canvas, svg {
+img,
+picture,
+video,
+canvas,
+svg {
   display: block;
   max-width: 100%;
 }
@@ -53,7 +58,7 @@ button {
   background: none;
   font: inherit; /* Inherits the body font instead of browser default */
 }
-.button-primary{
+.button-primary {
   background-color: var(--navbar-bg);
   color: var(--navbar-text);
   padding: 0.6rem 1.2rem;
@@ -62,8 +67,8 @@ button {
 }
 .button-primary:hover {
   background-color: var(--navbar-primary-hover);
- transform: translateY(-1px);
- box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   color: var(--navbar-text);
 }
 
@@ -72,7 +77,8 @@ a {
   color: inherit;
 }
 
-input, textarea {
+input,
+textarea {
   font: inherit;
   width: 100%;
 }
@@ -102,5 +108,5 @@ inputBaseStyle {
   background: var(--primary);
   color: var(--text-base);
   width: 100%;
-  outline: none; 
-};
+  outline: none;
+}

@@ -1,5 +1,5 @@
 .sidebar {
-    width: 200px;
+    width: 250px;
     background-color: var(--navbar-bg);
     color: var(--navbar-text);
     height: 100vh;
@@ -29,4 +29,29 @@
 
 .sidebar.open {
     transform: translateX(0);
+}
+/* Target the button specifically inside the sidebar list */
+.sidebar ul li .Button {
+    background-color: var(--navbar-bg) !important;
+    color: var(--navbar-text) !important;
+    transition: all 0.3s ease-in-out;
+    width:100%;
+    border-radius: 0;
+    font-size: 1rem;
+}
+.sidebar ul li .Button:hover {
+    background-color:var(--navbar-primary-hover) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    color: var(--text-base) !important;
+}
+.icon{
+    font-size: 1.3rem;
+}
+.Button a[href="/settings"] .icon {
+    font-size: 1.6rem;
+    transition: transform 0.3s ease;
+}
+.Button:hover a[href="/settings"] .icon {
+    transform: rotate(45deg);
 }

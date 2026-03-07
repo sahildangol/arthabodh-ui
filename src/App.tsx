@@ -6,22 +6,31 @@ import Dashboard from './pages/Dashboard';
 import Forecasting from './pages/Forecasting';
 import Momentum from './pages/Momentum';
 import Settings from './pages/Settings';
+import { Login } from './pages/loginSignup/Login';
+import { Signup } from './pages/loginSignup/Signup';
+import ProtectedRoute from './common/components/ProtectedRoutes';
 
 const AppRoutes = () => {
   return (
       <Routes>
+
+        {/* public routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/style-guide" element={<StyleGuide />} />
+        <Route path="*" element={<NotFound />} />
         
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<Navigate to="/Dashboard" />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/forecasting" element={<Forecasting />} />
-          <Route path="/momentum" element={<Momentum />} />
-          <Route path="/settings" element={<Settings />} />
+        {/* protected routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<Navigate to="/Dashboard" />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/forecasting" element={<Forecasting />} />
+            <Route path="/momentum" element={<Momentum />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
         </Route>
 
-          <Route path="/style-guide" element={<StyleGuide />} />
-
-        <Route path="*" element={<NotFound />} />
       </Routes>
   );
 };
