@@ -78,7 +78,6 @@ export const Login = () => {
         <button
           type="button"
           onClick={() => {
-            //Tell the AuthContext
             login({
               token: "simulated-token",
               user: {

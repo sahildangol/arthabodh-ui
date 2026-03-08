@@ -3,12 +3,12 @@ import MainLayout from './common/layouts/MainLayout';
 import StyleGuide from './pages/StyleGuide';
 import NotFound from './pages/NotFound';
 import Dashboard from './pages/Dashboard';
-import Forecasting from './pages/Forecasting';
 import Momentum from './pages/Momentum';
 import Settings from './pages/Settings';
 import { Login } from './pages/loginSignup/Login';
 import { Signup } from './pages/loginSignup/Signup';
 import ProtectedRoute from './common/components/ProtectedRoutes';
+import Forecasting from './pages/forecasting/Forecasting';
 
 const AppRoutes = () => {
   return (
@@ -24,8 +24,8 @@ const AppRoutes = () => {
         <Route element={<ProtectedRoute />}>
           <Route element={<MainLayout />}>
             <Route path="/" element={<Navigate to="/Dashboard" />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/forecasting" element={<Forecasting />} />
+            <Route path="/dashboard" element={<Dashboard />} />             
+            <Route path="/forecasting" element={<Forecasting/>}/> 
             <Route path="/momentum" element={<Momentum />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
