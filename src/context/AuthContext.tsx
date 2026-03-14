@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import axios from "axios";
-import { User, LoginResponse, AuthContextType } from "../common/types/auth";
+import { jwtDecode } from "jwt-decode";
+import { User, AuthContextType } from "../common/types/auth";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -11,27 +11,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const verifyToken = async () => {
-      if (token) {
-        //verification bypassed to simulate login
-        // try {
-        //   const response = await axios.get('http://localhost:8000/protected', {
-        //     headers: { Authorization: `Bearer ${token}` }
-        //   });
-        //   setUser(response.data.user);
-        // } catch (error) {
-        //   logout(); // Clear invalid token
-        // }
-      }
-      setLoading(false);
-    };
-    verifyToken();
-  }, [token]);
+  const decodeAndSetUser = (token: string) => {
+    try {
+      const decoded: any = jwtDecode(token);
 
-  const login = (data: LoginResponse) => {
+      // Check for expiration (FastAPI sends 'exp' usually)
+      const currentTime = Date.now() / 1000;
+      if (decoded.exp && decoded.exp < currentTime) {
+        logout();
+        return;
+      }
+
+      setUser({
+        id: decoded.user_id,
+        email: decoded.email || "Active Session",
+        first_name: `User #${decoded.user_id}`,
+      } as any);
+    } catch (err) {
+      console.error("Token decoding failed", err);
+      logout();
+    }
+  };
+
+  useEffect(() => {
+    const savedToken = localStorage.getItem("token");
+    if (savedToken) {
+      setToken(savedToken);
+      decodeAndSetUser(savedToken);
+    }
+    setLoading(false);
+  }, []);
+
+  const login = (data: { token: string }) => {
     localStorage.setItem("token", data.token);
     setToken(data.token);
+    decodeAndSetUser(data.token);
   };
 
   const logout = () => {
@@ -42,13 +56,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{ user, token, login, logout, loading }}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within an AuthProvider");
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
 };

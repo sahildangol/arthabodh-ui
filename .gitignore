@@ -29,3 +29,16 @@ node_modules/
 .env
 *.tsbuildinfo
 package-lock.json
+
+#AI
+repomix-output.xml
+repomix-output.md
+repomix-output.json
+repomix-output.txt
+
+#enviroments
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

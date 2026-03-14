@@ -2,7 +2,7 @@ import {Route,Routes,Navigate} from 'react-router';
 import MainLayout from './common/layouts/MainLayout';
 import StyleGuide from './pages/StyleGuide';
 import NotFound from './pages/NotFound';
-import Dashboard from './pages/Dashboard';
+import Dashboard from './pages/dashboard/Dashboard';
 import Momentum from './pages/Momentum';
 import Settings from './pages/Settings';
 import { Login } from './pages/loginSignup/Login';
@@ -23,7 +23,7 @@ const AppRoutes = () => {
         {/* protected routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<MainLayout />}>
-            <Route path="/" element={<Navigate to="/Dashboard" />} />
+            <Route path="/" element={<Navigate to="/dashboard" />} />
             <Route path="/dashboard" element={<Dashboard />} />             
             <Route path="/forecasting" element={<Forecasting/>}/> 
             <Route path="/momentum" element={<Momentum />} />

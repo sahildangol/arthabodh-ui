@@ -9,14 +9,19 @@ const MainLayout = () => {
   return (
     <div
       className="layout-container"
-      style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: "#0a0b0d", // Force global dark background
+      }}
     >
       <Title isOpen={isOpen} setIsOpen={setIsOpen} />
 
       <div
         style={{
           display: "flex",
-          flex: 1, 
+          flex: 1,
           marginTop: "60px",
           width: "100%",
         }}
@@ -26,13 +31,13 @@ const MainLayout = () => {
         <main
           style={{
             flex: 1,
-            padding: "20px",
+            // Removed padding: "20px" to prevent the "frame" effect
             marginLeft: isOpen ? "250px" : "0px",
             transition: "margin-left 0.3s ease",
-            display: "flex", 
+            display: "flex",
             flexDirection: "column",
-            minWidth: 0, 
-            background: "var(--primary)", 
+            minWidth: 0,
+            background: "#0a0b0d", // Match the dashboard bg
           }}
         >
           <Outlet />

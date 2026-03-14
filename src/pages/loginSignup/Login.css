@@ -73,3 +73,17 @@
   justify-content: center;
   margin-bottom: 1rem;
 }
+/* errors */
+.error-label {
+  color: #ff4d4f; /* A clean, readable red */
+  font-size: 0.8rem;
+  margin-top: 4px;
+  display: block;
+  text-align: left;
+}
+.server-error {
+  color: #ff4d4f;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
