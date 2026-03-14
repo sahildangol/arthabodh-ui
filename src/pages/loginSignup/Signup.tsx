@@ -24,7 +24,7 @@ export const Signup = () => {
 
   const [loading, setLoading] = useState(false);
 
-  // 1. Regex Validation Logic
+  //Regex Validation Logic
   const validate = () => {
     let tempErrors = {
       first_name: "",
