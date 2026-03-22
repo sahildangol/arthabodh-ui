@@ -1,7 +1,5 @@
 import axios  from "axios";
-import { config } from "dotenv";
 
-//auth,watchlist etc with protected routes
 export const authClient = axios.create({
     baseURL: "http://localhost:8001",
 });

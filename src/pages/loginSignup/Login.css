@@ -48,7 +48,6 @@
   color: var(--navbar-text);
 }
 
-/* Styles the whole line: "Signup? Create account" */
 .redirect {
   margin-top: 1.5rem;
   font-size: 0.9rem;
@@ -75,7 +74,7 @@
 }
 /* errors */
 .error-label {
-  color: #ff4d4f; /* A clean, readable red */
+  color: #ff4d4f; 
   font-size: 0.8rem;
   margin-top: 4px;
   display: block;

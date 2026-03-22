@@ -36,7 +36,7 @@ export const useMarketDashboard = () => {
             (s) => s.company_id === item.company_id,
           );
           return {
-            id: item.id, // Database PK
+            id: item.id, 
             company_id: item.company_id,
             symbol: liveMatch?.symbol || `ID: ${item.company_id}`,
             last_price: liveMatch?.lastTradedPrice || "---",

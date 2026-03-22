@@ -15,7 +15,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const decoded: any = jwtDecode(token);
 
-      // Check for expiration (FastAPI sends 'exp' usually)
       const currentTime = Date.now() / 1000;
       if (decoded.exp && decoded.exp < currentTime) {
         logout();

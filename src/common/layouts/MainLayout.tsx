@@ -13,7 +13,7 @@ const MainLayout = () => {
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
-        backgroundColor: "#0a0b0d", // Force global dark background
+        backgroundColor: "#0a0b0d", 
       }}
     >
       <Title isOpen={isOpen} setIsOpen={setIsOpen} />
@@ -31,13 +31,12 @@ const MainLayout = () => {
         <main
           style={{
             flex: 1,
-            // Removed padding: "20px" to prevent the "frame" effect
             marginLeft: isOpen ? "250px" : "0px",
             transition: "margin-left 0.3s ease",
             display: "flex",
             flexDirection: "column",
             minWidth: 0,
-            background: "#0a0b0d", // Match the dashboard bg
+            background: "#0a0b0d", 
           }}
         >
           <Outlet />
