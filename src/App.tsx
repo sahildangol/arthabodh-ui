@@ -3,7 +3,7 @@ import MainLayout from './common/layouts/MainLayout';
 import StyleGuide from './pages/StyleGuide';
 import NotFound from './pages/NotFound';
 import Dashboard from './pages/dashboard/Dashboard';
-import Momentum from './pages/Momentum';
+import Momentum from './pages/momentum/Momentum';
 import Settings from './pages/Settings';
 import { Login } from './pages/loginSignup/Login';
 import { Signup } from './pages/loginSignup/Signup';

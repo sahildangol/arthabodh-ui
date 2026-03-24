@@ -78,22 +78,10 @@ const Dashboard: React.FC = () => {
       </div>
 
       <header className="ab-header">
-<<<<<<< Updated upstream
-        <div className="ab-brand">
-          <h1>
-            ArthaBodh <span className="ab-version">v1.0</span>
-          </h1>
-          <p className="ab-subtitle">Financial Analysis Terminal</p>
-        </div>
-        <div className={`ab-status ${isOpen ? "is-live" : "is-closed"}`}>
-          <span className="pulse-dot"></span>
-          {isOpen ? "MARKET OPEN" : "MARKET CLOSED"}
-=======
         <div className={`ab-status-pill ${isMarketLive ? "live" : "closed"}`}>
           <span className="dot"></span>
           {isMarketLive ? "LIVE MARKET |" : "MARKET CLOSED |"}
           {new Date().toLocaleDateString("en-GB")}
->>>>>>> Stashed changes
         </div>
       </header>
 
