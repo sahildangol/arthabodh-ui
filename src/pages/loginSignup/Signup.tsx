@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { signup } from "../../api/authService";
-import Button from "../../common/components/Button";
 import { FaAddressCard } from "react-icons/fa";
-import "./Login.css";
+import { BiLoaderAlt } from "react-icons/bi";
+import "./Auth.css";
 
 export const Signup = () => {
   const navigate = useNavigate();
@@ -24,7 +24,6 @@ export const Signup = () => {
 
   const [loading, setLoading] = useState(false);
 
-  //Regex Validation Logic
   const validate = () => {
     let tempErrors = {
       first_name: "",
@@ -36,22 +35,19 @@ export const Signup = () => {
     let isValid = true;
 
     if (!/^[a-zA-Z]{2,30}$/.test(formData.first_name)) {
-      tempErrors.first_name = "Enter a valid first name (letters only).";
+      tempErrors.first_name = "Letters only (2-30 chars).";
       isValid = false;
     }
-
     if (!/^[a-zA-Z]{2,30}$/.test(formData.last_name)) {
-      tempErrors.last_name = "Enter a valid last name (letters only).";
+      tempErrors.last_name = "Letters only (2-30 chars).";
       isValid = false;
     }
-
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      tempErrors.email = "Please enter a valid email address.";
+      tempErrors.email = "Invalid email format.";
       isValid = false;
     }
-
     if (formData.password.length < 8) {
-      tempErrors.password = "Password must be at least 8 characters.";
+      tempErrors.password = "Minimum 8 characters required.";
       isValid = false;
     }
 
@@ -66,13 +62,12 @@ export const Signup = () => {
     setLoading(true);
     try {
       await signup(formData);
-      alert("Account created! Please login.");
       navigate("/login");
     } catch (err: any) {
-      const msg = err.response?.data?.detail || "Signup failed. Try again.";
+      const msg = err.response?.data?.detail || "Registration failed.";
       setErrors((prev) => ({
         ...prev,
-        server: typeof msg === "string" ? msg : "Check your details.",
+        server: typeof msg === "string" ? msg : "Registration rejection.",
       }));
     } finally {
       setLoading(false);
@@ -80,101 +75,98 @@ export const Signup = () => {
   };
 
   return (
-    <div className="auth-wrapper">
-      <form onSubmit={handleSubmit} className="auth-card" noValidate>
-        <div
-          className="auth-icon-container"
-          style={{ fontSize: "4rem", display: "flex", justifyContent: "center", color: "black" }}
-        >
-          <FaAddressCard />
-        </div>
-
-        <h2 style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-          Create Account
-        </h2>
+    <div className="auth-container">
+      <div className="auth-card">
+        <header className="auth-header">
+          <div className="auth-icon-terminal">
+            <FaAddressCard size={40} />
+          </div>
+          <h2>CREATE Account</h2>
+          <p>Register new profile</p>
+        </header>
 
         {errors.server && (
-          <p className="error-text server-error">{errors.server}</p>
+          <div className="auth-server-error">{errors.server}</div>
         )}
 
-        {/* First Name */}
-        <div className="input-group">
-          <input
-            type="text"
-            placeholder="First Name"
-            value={formData.first_name}
-            onChange={(e) =>
-              setFormData({ ...formData, first_name: e.target.value })
-            }
-            className={errors.first_name ? "input-error" : ""}
-          />
-          {errors.first_name && (
-            <span className="error-label">{errors.first_name}</span>
-          )}
+        <form onSubmit={handleSubmit} className="auth-form" noValidate>
+          <div className="input-group">
+            <label>First Name</label>
+            <input
+              type="text"
+              className={`auth-input ${errors.first_name ? "input-error" : ""}`}
+              placeholder="first_name"
+              value={formData.first_name}
+              onChange={(e) =>
+                setFormData({ ...formData, first_name: e.target.value })
+              }
+            />
+            {errors.first_name && (
+              <span className="error-label-mini">{errors.first_name}</span>
+            )}
+          </div>
+
+          <div className="input-group">
+            <label>Last Name</label>
+            <input
+              type="text"
+              className={`auth-input ${errors.last_name ? "input-error" : ""}`}
+              placeholder="last_name"
+              value={formData.last_name}
+              onChange={(e) =>
+                setFormData({ ...formData, last_name: e.target.value })
+              }
+            />
+            {errors.last_name && (
+              <span className="error-label-mini">{errors.last_name}</span>
+            )}
+          </div>
+
+          <div className="input-group">
+            <label>Email</label>
+            <input
+              type="email"
+              className={`auth-input ${errors.email ? "input-error" : ""}`}
+              placeholder="user@arthabodh.com"
+              value={formData.email}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+            />
+            {errors.email && (
+              <span className="error-label-mini">{errors.email}</span>
+            )}
+          </div>
+
+          <div className="input-group">
+            <label>PASSWORD</label>
+            <input
+              type="password"
+              className={`auth-input ${errors.password ? "input-error" : ""}`}
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
+            />
+            {errors.password && (
+              <span className="error-label-mini">{errors.password}</span>
+            )}
+          </div>
+
+          <button type="submit" className="auth-btn" disabled={loading}>
+            {loading ? (
+              <BiLoaderAlt className="spin-icon" />
+            ) : (
+              "Complete Registration"
+            )}
+          </button>
+        </form>
+
+        <div className="auth-footer">
+          Existing User? <Link to="/login">Login</Link>
         </div>
-
-        {/* Last Name */}
-        <div className="input-group">
-          <input
-            type="text"
-            placeholder="Last Name"
-            value={formData.last_name}
-            onChange={(e) =>
-              setFormData({ ...formData, last_name: e.target.value })
-            }
-            className={errors.last_name ? "input-error" : ""}
-          />
-          {errors.last_name && (
-            <span className="error-label">{errors.last_name}</span>
-          )}
-        </div>
-
-        {/* Email */}
-        <div className="input-group">
-          <input
-            type="email"
-            placeholder="Email"
-            value={formData.email}
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
-            className={errors.email ? "input-error" : ""}
-          />
-          {errors.email && <span className="error-label">{errors.email}</span>}
-        </div>
-
-        {/* Password */}
-        <div className="input-group">
-          <input
-            type="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={(e) =>
-              setFormData({ ...formData, password: e.target.value })
-            }
-            className={errors.password ? "input-error" : ""}
-          />
-          {errors.password && (
-            <span className="error-label">{errors.password}</span>
-          )}
-        </div>
-
-        <Button
-          variant="primary"
-          type="submit"
-          style={{ width: "100%" }}
-          disabled={loading}
-        >
-          {loading ? "Creating..." : "Sign Up"}
-        </Button>
-
-        <p
-          className="redirect"
-          style={{ textAlign: "center", marginTop: "1rem" }}
-        >
-          Already have an account? <Link to="/login">Login</Link>
-        </p>
-      </form>
+      </div>
     </div>
   );
 };

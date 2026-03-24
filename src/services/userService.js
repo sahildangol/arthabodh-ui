@@ -33,7 +33,6 @@ export const UserService = {
   },
 
   removeFromWatchlist: async (watchlistId) => {
-    // This triggers the Soft Delete (is_active = false)
     return await api.delete(`/user-preference/watchlist/${watchlistId}`);
   },
 };

@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { useAuth } from "../../context/AuthContext";
 import { login as loginService } from "../../api/authService";
-import Button from "../../common/components/Button";
 import { CgProfile } from "react-icons/cg";
-import "./Login.css";
+import { BiLoaderAlt } from "react-icons/bi";
+import "./Auth.css"; // Ensure this is the optimized CSS file
 
 export const Login = () => {
   const navigate = useNavigate();
@@ -17,7 +17,7 @@ export const Login = () => {
   const [errors, setErrors] = useState({
     email: "",
     password: "",
-    server: ""
+    server: "",
   });
 
   const validate = () => {
@@ -25,12 +25,12 @@ export const Login = () => {
     let isValid = true;
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      tempErrors.email = "Please enter a valid email address.";
+      tempErrors.email = "IDENTIFICATION_ERROR: Invalid email format.";
       isValid = false;
     }
 
     if (password.length < 1) {
-      tempErrors.password = "Password is required.";
+      tempErrors.password = "ACCESS_KEY_REQUIRED: Password cannot be empty.";
       isValid = false;
     }
 
@@ -45,15 +45,15 @@ export const Login = () => {
     setLoading(true);
     try {
       const data = await loginService(email, password);
-      
-      login(data); 
-      
+      login(data);
       navigate("/dashboard");
     } catch (err: any) {
-      const msg = err.response?.data?.detail || "Invalid email or password.";
-      setErrors(prev => ({ 
-        ...prev, 
-        server: typeof msg === 'string' ? msg : "Login failed. Check your credentials." 
+      const msg =
+        err.response?.data?.detail || "Access Denied.";
+      setErrors((prev) => ({
+        ...prev,
+        server:
+          typeof msg === "string" ? msg : "LOGIN ERROR",
       }));
     } finally {
       setLoading(false);
@@ -61,63 +61,85 @@ export const Login = () => {
   };
 
   return (
-    <div className="auth-wrapper">
-      <form onSubmit={handleSubmit} className="auth-card" noValidate>
-        <div className="auth-icon-container" style={{ fontSize: "4rem",display: "flex", justifyContent: "center", color: "black" }}>
-          <CgProfile />
-        </div>
+    <div className="auth-container">
+      <div className="auth-card">
+        <header className="auth-header">
+          <div className="auth-icon-terminal">
+            <CgProfile size={40} />
+          </div>
+          <h2>LOGIN</h2>
+          <p>Login to Access</p>
+        </header>
 
-        <h1 className="Login" style={{ textAlign: "center", marginBottom: "1.5rem" }}>Login</h1>
-
-        {errors.server && <p className="server-error">{errors.server}</p>}
-
-        {/* Email Field */}
-        <div className="input-group">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              if(errors.email) setErrors({...errors, email: ""});
+        {errors.server && (
+          <div
+            className="limit-warning"
+            style={{
+              marginBottom: "1rem",
+              border: "1px solid #f85149",
+              color: "#f85149",
+              background: "rgba(248, 81, 73, 0.1)",
+              padding: "8px",
+              fontSize: "0.75rem",
+              borderRadius: "4px",
             }}
-            className={errors.email ? "input-field-error" : ""}
-            required
-          />
-          {errors.email && <span className="error-label">{errors.email}</span>}
+          >
+            {errors.server}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="auth-form" noValidate>
+          {/* Email Field */}
+          <div className="input-group">
+            <label>Email</label>
+            <input
+              type="email"
+              placeholder="user@arthabodh.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (errors.email) setErrors({ ...errors, email: "" });
+              }}
+              className={`auth-input ${errors.email ? "input-error" : ""}`}
+              required
+            />
+            {errors.email && (
+              <span className="error-label-mini">{errors.email}</span>
+            )}
+          </div>
+
+          {/* Password Field */}
+          <div className="input-group">
+            <label>Password</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (errors.password) setErrors({ ...errors, password: "" });
+              }}
+              className={`auth-input ${errors.password ? "input-error" : ""}`}
+              required
+            />
+            {errors.password && (
+              <span className="error-label-mini">{errors.password}</span>
+            )}
+          </div>
+
+          <button type="submit" className="auth-btn" disabled={loading}>
+            {loading ? (
+              <BiLoaderAlt className="spin-icon" />
+            ) : (
+              "COMPLETE LOGIN"
+            )}
+          </button>
+        </form>
+
+        <div className="auth-footer">
+          New User? <Link to="/signup">Create Account</Link>
         </div>
-
-        {/* Password Field */}
-        <div className="input-group">
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              if(errors.password) setErrors({...errors, password: ""});
-            }}
-            className={errors.password ? "input-field-error" : ""}
-            required
-          />
-          {errors.password && <span className="error-label">{errors.password}</span>}
-        </div>
-
-        <Button
-          variant="primary"
-          type="submit"
-          style={{ width: "100%" }}
-          disabled={loading}
-        >
-          {loading ? "Logging in..." : "Log In"}
-        </Button>
-
-        <hr style={{ margin: "20px 0", border: "0.5px solid #eee" }} />
-
-        <p className="redirect" style={{ textAlign: "center" }}>
-          New to ArthaBodh? <Link to="/signup">Create account</Link>
-        </p>
-      </form>
+      </div>
     </div>
   );
 };

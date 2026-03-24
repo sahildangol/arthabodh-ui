@@ -1,57 +1,92 @@
 .sidebar {
-    width: 250px;
-    background-color: var(--navbar-bg);
-    color: var(--navbar-text);
-    height: 100vh;
+    width: 240px;
+    background-color: #111318; /* Matches Title & Sidebar Config bg */
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    height: calc(100vh - 60px);
     position: fixed;
     top: 60px;
     left: 0;
-    
     display: flex;
     flex-direction: column; 
-    
-    padding-top: 20px;
-    transition: transform 0.3s ease-in-out;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     transform: translateX(-100%);
-    z-index: 1000;
-}
-
-
-.sidebar ul li a {
-    display: flex;
-    flex-direction: row;   
-    align-items: center;    
-    gap: 15px;              
-    padding: 15px 20px;
-    text-decoration: none;
-    color: inherit;
+    z-index: 999;
 }
 
 .sidebar.open {
     transform: translateX(0);
 }
-/* Target the button specifically inside the sidebar list */
-.sidebar ul li .Button {
-    background-color: var(--navbar-bg) !important;
-    color: var(--navbar-text) !important;
-    transition: all 0.3s ease-in-out;
-    width:100%;
-    border-radius: 0;
-    font-size: 1rem;
+
+.sidebar-label {
+    padding: 20px 24px 10px 24px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #6a717d;
+    letter-spacing: 2px;
 }
-.sidebar ul li .Button:hover {
-    background-color:var(--navbar-primary-hover) !important;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    color: var(--text-base) !important;
+
+.sidebar-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
-.icon{
-    font-size: 1.3rem;
+
+/* Base Nav Item */
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 14px 24px;
+    text-decoration: none;
+    color: #9ba1ad;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
 }
-.Button a[href="/settings"] .icon {
-    font-size: 1.6rem;
-    transition: transform 0.3s ease;
+
+.nav-item:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+    color: #ffffff;
 }
-.Button:hover a[href="/settings"] .icon {
+
+/* Active State - Subdued Blue like Momentum cards */
+.nav-item.active {
+    background-color: rgba(61, 138, 255, 0.08);
+    color: #3d8aff;
+    border-left: 3px solid #3d8aff;
+}
+
+.nav-item .icon {
+    font-size: 1.2rem;
+    opacity: 0.7;
+}
+
+.nav-item.active .icon {
+    opacity: 1;
+}
+
+/* Special logic for Settings icon rotation */
+.settings-icon {
+    transition: transform 0.4s ease;
+}
+
+.nav-item:hover .settings-icon {
     transform: rotate(45deg);
+    opacity: 1;
+}
+
+.sidebar-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.05);
+    margin: 10px 24px;
+}
+
+.sidebar-footer {
+    margin-top: auto;
+    padding: 20px 24px;
+    font-size: 0.6rem;
+    color: #4a505a;
+    font-family: 'Courier New', Courier, monospace;
+    letter-spacing: 1px;
 }

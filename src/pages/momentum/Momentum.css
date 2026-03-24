@@ -1,0 +1,209 @@
+.momentum-container {
+  display: flex;
+  height: calc(100vh - 60px); /* Adjust based on your Navbar height */
+  background: #0a0b0d;
+  color: #e3e6eb;
+  overflow: hidden;
+}
+
+/* SIDEBAR STYLES */
+.m-sidebar {
+  width: 300px;
+  background: #111318;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 15px 20px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #6a717d;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-content {
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field-block label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+  color: #9ba1ad;
+}
+
+.m-select {
+  width: 100%;
+  background: #1a1d24;
+  border: 1px solid #2d323d;
+  color: white;
+  padding: 10px;
+  border-radius: 4px;
+  outline: none;
+}
+
+.m-btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #3d8aff;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 4px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.m-btn-primary.disabled {
+  background: #2d323d;
+  color: #6a717d;
+  cursor: not-allowed;
+}
+
+.m-warning-box {
+  background: rgba(255, 171, 0, 0.05);
+  border: 1px solid rgba(255, 171, 0, 0.2);
+  padding: 12px;
+  border-radius: 4px;
+  display: flex;
+  gap: 10px;
+  color: #ffab00;
+  font-size: 0.75rem;
+}
+
+/* MAIN CONTENT STYLES */
+.m-main {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.m-main-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 30px;
+}
+
+.title-group h2 {
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.m-count-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+.m-count-badge.warning { color: #ff3b69; background: rgba(255, 59, 105, 0.1); }
+
+/* EMPTY STATE CENTERED */
+.m-empty-state {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.empty-content {
+  max-width: 400px;
+}
+
+.empty-icon {
+  font-size: 80px;
+  color: #1a1d24;
+  margin-bottom: 20px;
+}
+
+.empty-content h3 { font-size: 1.1rem; margin-bottom: 10px; }
+.empty-content p { color: #9ba1ad; font-size: 0.9rem; line-height: 1.6; }
+
+/* SIGNAL GRID */
+.m-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.m-signal-card {
+  background: #14161a;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.m-card-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.m-symbol { font-weight: 800; font-size: 1.1rem; }
+
+.m-actions { display: flex; align-items: center; gap: 10px; }
+
+.m-direction-tag {
+  font-size: 0.7rem;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.m-direction-tag.up { background: rgba(0, 255, 189, 0.1); color: #00ffbd; }
+.m-direction-tag.down { background: rgba(255, 59, 105, 0.1); color: #ff3b69; }
+
+.m-btn-delete {
+  background: none;
+  border: none;
+  color: #4a505a;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.m-btn-delete:hover { color: #ff3b69; }
+
+.m-data-table {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.m-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.m-row label { color: #9ba1ad; }
+.val-blue { color: #3d8aff; font-weight: 700; }
+.val-up { color: #00ffbd; font-weight: 700; }
+.val-down { color: #ff3b69; font-weight: 700; }
+
+/* UTILS */
+.spin-icon { animation: spin 1s linear infinite; }
+.spin-icon.large { font-size: 2rem; margin-bottom: 15px; color: #3d8aff; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.center-loader {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}

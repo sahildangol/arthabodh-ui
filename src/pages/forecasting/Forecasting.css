@@ -1,96 +1,285 @@
-.dashboard-page {
+.f-container {
   display: flex;
-  flex-direction: row;
+  height: calc(100vh - 60px);
+  background: #0a0b0d;
+  color: #e3e6eb;
+}
+
+.f-main {
+  flex-grow: 1;
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.f-header {
+  display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  width: 100%;
-  height: 100vh;
-  padding: var(--space-lg);
-  gap: var(--space-lg);
-  background-color: var(--primary); 
-  overflow: hidden;
+  margin-bottom: 24px;
 }
 
-.dashboard-container {
-  flex: 1;
-  height: 100%;
-  overflow-y: auto;
+.f-title-group h2 {
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+  margin: 0;
 }
 
-.custom-dropdown-wrapper {
-  width: 320px;
-  background: #f9f9f9; 
+.f-title-group p {
+  font-size: 0.7rem;
+  color: #9ba1ad;
+  margin-top: 5px;
+  letter-spacing: 0.5px;
+}
+
+.f-title-group span { color: #3d8aff; font-weight: 700; }
+
+.f-status-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 4px;
+}
+
+.f-status-badge.live { background: rgba(0, 255, 189, 0.1); color: #00ffbd; border: 1px solid rgba(0, 255, 189, 0.2); }
+.f-status-badge.warning { background: rgba(255, 171, 0, 0.1); color: #ffab00; border: 1px solid rgba(255, 171, 0, 0.2); }
+
+/* GRID LAYOUT */
+.f-grid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 20px;
+  flex-grow: 1;
+}
+
+.f-card {
+  background: #14161a;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
   padding: 20px;
-  border-radius: 16px;
-  border: 1px solid #e5e7eb; 
-  height: calc(100vh - 80px);
+}
+
+.f-chart-area {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
 }
 
-.dropdown-trigger {
+.f-card-header {
   display: flex;
-  justify-content: space-between; 
+  justify-content: space-between;
   align-items: center;
-  background-color: #364355cc; 
-  padding: 0 16px;
-  border-radius: 10px;
-  font-weight: 600;
-  color: white;
-  cursor: pointer;
-  min-height: 40px;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 }
 
-.dropdown-trigger:hover {
-  background-color: #000000;
-  transform: translateY(-1px);
-}
-
-.dropdown-menu {
-  display: flex;
-  flex-direction: column;
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  margin-top: 8px;
-  padding: 6px;
-  gap: 4px;
-  list-style: none; 
-}
-.dropdown-item {
-  padding: 10px 14px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  color: rgb(0, 0, 0);
-  cursor: pointer;
-  transition: all 0.15s ease;
+.f-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #9ba1ad;
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
-.dropdown-item:hover {
-  background-color: var(--navbar-primary-hover); 
-  color: #8a83b1;
-  font-weight: 600px;
-  padding-left: 18px; 
+.f-chart-wrapper {
+  flex-grow: 1;
+  min-height: 400px;
 }
 
-.dropdown-item.selected {
-  background-color: #434a53;
-  color: white;
+/* BUTTONS & DROPDOWN */
+.f-tab {
+  background: transparent;
+  border: 1px solid #2d323d;
+  color: #9ba1ad;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 6px;
+  border-radius: 4px;
+}
+
+.f-tab.active { background: #3d8aff; color: white; border-color: #3d8aff; }
+
+.f-dropdown-trigger {
+  background: #1a1d24;
+  border: 1px solid #2d323d;
+  padding: 12px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  cursor: pointer;
+  font-size: 0.9rem;
   font-weight: 700;
 }
 
-.dropdown-icon {
-  font-size: 1.3rem;
-  transition: transform 0.3s ease;
+.f-dropdown-list {
+  position: absolute;
+  width: 240px;
+  background: #1a1d24;
+  border: 1px solid #2d323d;
+  border-radius: 4px;
+  margin-top: 5px;
+  z-index: 10;
+  max-height: 200px;
+  overflow-y: auto;
+  list-style: none;
 }
 
-.dropdown-icon.open {
-  transform: rotate(180deg);
+.f-dropdown-list li {
+  padding: 10px 15px;
+  font-size: 0.85rem;
+  cursor: pointer;
 }
+
+.f-dropdown-list li:hover { background: #3d8aff; }
+
+/* HISTORY */
+.f-controls { display: flex; flex-direction: column; gap: 20px; }
+.f-field-label { display: block; font-size: 0.65rem; font-weight: 800; margin-bottom: 10px; color: #6a717d; }
+
+.f-history-list { display: flex; flex-direction: column; gap: 8px; }
+
+.f-history-item {
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.f-history-item .dot { width: 4px; height: 4px; background: #4a505a; border-radius: 50%; }
+.f-history-item.active { border-color: #3d8aff; color: #3d8aff; background: rgba(61, 138, 255, 0.05); }
+.f-history-item.active .dot { background: #3d8aff; box-shadow: 0 0 5px #3d8aff; }
+
+.f-loader { height: 100%; display: flex; align-items: center; justify-content: center; color: #3d8aff; font-size: 0.8rem; font-weight: 800; }
+.rotate { transform: rotate(180deg); }
+/* Status Pill & Neon Dot */
+.ab-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+}
+
+/* Green Glow for Open Market */
+.ab-status-pill.live {
+  background: rgba(0, 255, 189, 0.05);
+  border: 1px solid rgba(0, 255, 189, 0.2);
+  color: #00ffbd;
+  box-shadow: 0 0 15px rgba(0, 255, 189, 0.05);
+}
+
+/* Red Glow for Closed Market */
+.ab-status-pill.closed {
+  background: rgba(255, 59, 105, 0.05);
+  border: 1px solid rgba(255, 59, 105, 0.2);
+  color: #ff3b69;
+  box-shadow: 0 0 15px rgba(255, 59, 105, 0.05);
+}
+
+/* The Neon LED Dot */
+.neon-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+}
+
+.live .neon-dot {
+  background-color: #00ffbd;
+  box-shadow: 0 0 8px #00ffbd, 0 0 12px #00ffbd;
+  animation: neonPulseGreen 2s infinite;
+}
+
+.closed .neon-dot {
+  background-color: #ff3b69;
+  box-shadow: 0 0 8px #ff3b69, 0 0 12px #ff3b69;
+  animation: neonPulseRed 2s infinite;
+}
+
+/* Pulse Animations */
+@keyframes neonPulseGreen {
+  0% { box-shadow: 0 0 5px #00ffbd; opacity: 1; }
+  50% { box-shadow: 0 0 15px #00ffbd, 0 0 20px #00ffbd; opacity: 0.8; }
+  100% { box-shadow: 0 0 5px #00ffbd; opacity: 1; }
+}
+
+@keyframes neonPulseRed {
+  0% { box-shadow: 0 0 5px #ff3b69; opacity: 1; }
+  50% { box-shadow: 0 0 15px #ff3b69, 0 0 20px #ff3b69; opacity: 0.8; }
+  100% { box-shadow: 0 0 5px #ff3b69; opacity: 1; }
+}
+
+/* Status Pill Glows */
+.ab-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.ab-status-pill.live {
+  background: rgba(0, 255, 189, 0.05);
+  border: 1px solid rgba(0, 255, 189, 0.2);
+  color: #00ffbd;
+  box-shadow: 0 0 15px rgba(0, 255, 189, 0.05);
+}
+
+.ab-status-pill.closed {
+  background: rgba(255, 59, 105, 0.05);
+  border: 1px solid rgba(255, 59, 105, 0.2);
+  color: #ff3b69;
+  box-shadow: 0 0 15px rgba(255, 59, 105, 0.05);
+}
+
+
+.neon-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.live .neon-dot {
+  background-color: #00ffbd;
+  box-shadow: 0 0 8px #00ffbd, 0 0 12px #00ffbd;
+  animation: neonPulseGreen 2s infinite;
+}
+
+.closed .neon-dot {
+  background-color: #ff3b69;
+  box-shadow: 0 0 8px #ff3b69, 0 0 12px #ff3b69;
+  animation: neonPulseRed 2s infinite;
+}
+
+@keyframes neonPulseGreen {
+  0%, 100% { box-shadow: 0 0 5px #00ffbd; opacity: 1; }
+  50% { box-shadow: 0 0 15px #00ffbd, 0 0 20px #00ffbd; opacity: 0.8; }
+}
+
+@keyframes neonPulseRed {
+  0%, 100% { box-shadow: 0 0 5px #ff3b69; opacity: 1; }
+  50% { box-shadow: 0 0 15px #ff3b69, 0 0 20px #ff3b69; opacity: 0.8; }
+}
+
+/* Ticker Status Borders */
+.ab-ticker-wrap { border-top: 2px solid transparent; }
+.live-border { border-top-color: rgba(0, 255, 189, 0.2); }
+.closed-border { border-top-color: rgba(255, 59, 105, 0.2); }
