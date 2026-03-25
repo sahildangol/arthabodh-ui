@@ -1,14 +1,14 @@
-import axios  from "axios";
+import axios from "axios";
 import { config } from "dotenv";
 
 //auth,watchlist etc with protected routes
 export const authClient = axios.create({
-    baseURL: "http://localhost:8001",
+  baseURL: "http://localhost:8001",
 });
 
-//market data (Live Markert,Index)
+//market data (Live Market, Index)
 export const marketClient = axios.create({
-  baseURL: "http://127.0.0.1:8001/live",
+  baseURL: "http://localhost:8001",
 });
 
 //for auto injecting token in header(interceptor)

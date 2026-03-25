@@ -1,9 +1,16 @@
+import "./Settings.css";
+
 const Settings = () => {
-    return(
+  return (
+    <div className="settings-shell">
+      <header className="settings-header">
         <div>
-            <h1>Settings</h1>
-            <p>This is the settings page.</p>
+          <p className="eyebrow">Settings</p>
+          <h1>Work in Progress</h1>
+          <p className="lead">This page is being rebuilt. Check back soon.</p>
         </div>
-    );
-}
+      </header>
+    </div>
+  );
+};
 export default Settings;

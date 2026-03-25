@@ -3,8 +3,9 @@ import { authClient } from "./client";
 export const login = async (email, password) => {
     try{
         const response = await authClient.post("/auth/login", { email, password });
-        if (response.data.access_token) {
-            localStorage.setItem("token", response.data.access_token);
+        const token = response.data.token || response.data.access_token;
+        if (token) {
+            localStorage.setItem("token", token);
         }
         return response.data;
     }

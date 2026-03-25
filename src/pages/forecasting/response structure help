@@ -1,0 +1,36 @@
+Endpoint contract
+
+URL called by the UI: ${LINE_API}/${company_id}?window=${timeframe}
+timeframe is 7 or 30 (UI buttons).
+Response must be HTTP 200 with this JSON shape (preferred and required):
+[
+{
+"name": "<SYMBOL>",
+"data": [
+{ "x": "<ISO date or timestamp>", "y": <number>, "is_predicted": <bool> },
+...
+]
+}
+]
+Fields:
+x: ISO date string (e.g., "2026-03-20") or a timestamp useable by new Date().
+y: number (close price).
+is_predicted: true for forecasted points (these render dashed); false or omitted for actuals.
+Sample that matches the “NABIL simulated” UI
+[
+{
+"name": "NABIL",
+"data": [
+{ "x": "2026-03-20", "y": 450.5, "is_predicted": false },
+{ "x": "2026-03-21", "y": 455.2, "is_predicted": false },
+{ "x": "2026-03-22", "y": 448.0, "is_predicted": false },
+{ "x": "2026-03-23", "y": 462.1, "is_predicted": true },
+{ "x": "2026-03-24", "y": 459.8, "is_predicted": true }
+]
+}
+]
+
+What to change in code
+
+Set LINE_API in src/pages/forecasting/Forecasting.tsx to  base URL 
+Ensure  endpoint returns the JSON above hopefully  the UI will render the line graph with no additional changes.

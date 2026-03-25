@@ -1,24 +1,36 @@
-import React from "react";
 import { motion } from "framer-motion";
 
-const MomentumGauge = ({ value, strength, direction }) => {
+type MomentumGaugeProps = {
+  value: number; // 0 to 1
+  strength: string | number;
+  direction: string;
+};
+
+const MomentumGauge = ({ value, strength, direction }: MomentumGaugeProps) => {
   const isUp = direction?.toUpperCase() === "UP";
-  const rotate = value * 180 - 90; // Converts 0-1 range to -90 to +90 degrees
+  const safeValue = Math.max(0, Math.min(1, Number(value) || 0));
+  const rotate = safeValue * 180 - 90; // Converts 0-1 range to -90 to +90 degrees
 
   return (
     <div
-      style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        width: "100%",
+      }}
     >
       <div
         style={{
           position: "relative",
-          width: "250px",
-          height: "125px",
+          width: "320px",
+          maxWidth: "100%",
+          height: "160px",
           overflow: "hidden",
         }}
       >
         {/* Background Track */}
-        <svg width="250" height="250" viewBox="0 0 100 100">
+        <svg width="320" height="320" viewBox="0 0 100 100">
           <path
             d="M 10 50 A 40 40 0 0 1 90 50"
             fill="none"
@@ -32,7 +44,7 @@ const MomentumGauge = ({ value, strength, direction }) => {
             stroke={isUp ? "#22c55e" : "#ef4444"}
             strokeWidth="8"
             initial={{ pathLength: 0 }}
-            animate={{ pathLength: value }}
+            animate={{ pathLength: safeValue }}
             transition={{ duration: 1.2 }}
           />
         </svg>
@@ -66,7 +78,7 @@ const MomentumGauge = ({ value, strength, direction }) => {
           {strength}
         </div>
         <div style={{ fontSize: "0.8rem", opacity: 0.6 }}>
-          {(value * 100).toFixed(1)}% INTENSITY
+          {(safeValue * 100).toFixed(1)}% INTENSITY
         </div>
       </div>
     </div>

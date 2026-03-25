@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useMarketDashboard } from "../../hooks/useMarketDashboard";
 import { MarketService } from "../../services/marketService";
-import { UserService } from "../../services/userService";
 import { BiLoaderAlt } from "react-icons/bi";
-import { FaPlus, FaTrash } from "react-icons/fa";
 import "./Dashboard.css";
 
 const Dashboard: React.FC = () => {
-  const { index, gainers, losers, watchlist, loading, refresh } =
-    useMarketDashboard();
+  const { index, gainers, losers, loading } = useMarketDashboard();
   const [tickerData, setTickerData] = useState<any[]>([]);
   const [isMarketLive, setIsMarketLive] = useState(false);
 
@@ -30,18 +27,6 @@ const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleAddStock = async () => {
-    const cid = prompt("ENTER_NEPSE_ID:");
-    if (cid) {
-      try {
-        await UserService.addToWatchlist(Number(cid));
-        refresh();
-      } catch (e) {
-        alert("INVALID_OR_DUPLICATE_ID");
-      }
-    }
-  };
-
   if (loading)
     return (
       <div className="ab-loader-container">
@@ -51,7 +36,7 @@ const Dashboard: React.FC = () => {
     );
 
   return (
-    <div className="ab-dashboard">
+    <div className={`ab-dashboard ${isMarketLive ? "is-live" : "is-closed"}`}>
       {/* TICKER TAPE */}
       <div className="ab-ticker-wrap">
         {isMarketLive ? (
@@ -147,42 +132,15 @@ const Dashboard: React.FC = () => {
         </div>
       </section>
 
-      {/* WATCHLIST SECTION */}
       <section className="ab-section">
         <div className="ab-section-header">
-          <h3>PERSONAL WATCHLIST</h3>
-          <button className="ab-btn-add" onClick={handleAddStock}>
-            <FaPlus size={10} /> Stock
-          </button>
+          <h3>WATCHLIST</h3>
         </div>
-        <div className="ab-watchlist-grid">
-          {watchlist.length > 0 ? (
-            watchlist.map((item: any) => (
-              <div key={item.id} className="ab-stock-card">
-                <div className="stock-card-head">
-                  <span className="stock-symbol">{item.symbol}</span>
-                  <button
-                    className="stock-del"
-                    onClick={() =>
-                      UserService.removeFromWatchlist(item.id).then(refresh)
-                    }
-                  >
-                    <FaTrash size={10} />
-                  </button>
-                </div>
-                <div className="stock-card-body">
-                  <span className="stock-price">Rs. {item.last_price}</span>
-                  <span
-                    className={`stock-change ${item.percent_change >= 0 ? "up" : "down"}`}
-                  >
-                    {item.percent_change}%
-                  </span>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="ab-empty-state">Nothing in watchlist</div>
-          )}
+        <div className="ab-watchlist-placeholder">
+          <div className="ab-placeholder-title">Watchlist Coming Soon</div>
+          <p className="ab-placeholder-copy">
+           Work in Progress
+          </p>
         </div>
       </section>
     </div>

@@ -2,42 +2,22 @@ import { useState } from "react";
 import { Outlet } from "react-router";
 import Sidebar from "../components/sidebar/Sidebar";
 import { Title } from "../components/Title";
+import "./MainLayout.css";
 
 const MainLayout = () => {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <div
-      className="layout-container"
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: "#0a0b0d", // Force global dark background
-      }}
-    >
+    <div className="layout-shell">
       <Title isOpen={isOpen} setIsOpen={setIsOpen} />
 
-      <div
-        style={{
-          display: "flex",
-          flex: 1,
-          marginTop: "60px",
-          width: "100%",
-        }}
-      >
+      <div className="layout-body">
         <Sidebar isOpen={isOpen} />
 
         <main
+          className="layout-main"
           style={{
-            flex: 1,
-            // Removed padding: "20px" to prevent the "frame" effect
-            marginLeft: isOpen ? "250px" : "0px",
-            transition: "margin-left 0.3s ease",
-            display: "flex",
-            flexDirection: "column",
-            minWidth: 0,
-            background: "#0a0b0d", // Match the dashboard bg
+            marginLeft: isOpen ? "240px" : "0px",
           }}
         >
           <Outlet />

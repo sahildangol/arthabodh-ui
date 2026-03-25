@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { FaPlus, FaTrashAlt, FaExclamationTriangle } from "react-icons/fa";
+import { FaTrashAlt, FaExclamationTriangle } from "react-icons/fa";
 import { BiLoaderAlt } from "react-icons/bi";
 import { HiOutlineDocumentSearch } from "react-icons/hi";
 import MomentumGauge from "../../common/components/MomentumGauge";
 import "./Momentum.css";
 
 const API_BASE = "http://localhost:8001/inference";
-const MAX_SIGNALS = 4;
+const MAX_SIGNALS = 5;
 
 const Momentum: React.FC = () => {
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
@@ -21,7 +21,9 @@ const Momentum: React.FC = () => {
     try {
       const res = await fetch(`${API_BASE}/supported-symbols`);
       const data = await res.json();
-      setAllSymbols(Array.isArray(data) ? data : []);
+      const symbols = Array.isArray(data) ? data : [];
+      const unique = Array.from(new Set(symbols)).sort();
+      setAllSymbols(unique);
     } catch (err) {
       console.error("Failed to load symbols:", err);
     } finally {
@@ -93,13 +95,8 @@ const Momentum: React.FC = () => {
             onClick={handleTrack}
             disabled={!selectedSymbol || isProcessing || isLimitReached}
           >
-            {isProcessing ? (
-              <BiLoaderAlt className="spin-icon" />
-            ) : isLimitReached ? (
-              <FaExclamationTriangle />
-            ) : (
-              <FaPlus />
-            )}
+            {isProcessing && <BiLoaderAlt className="spin-icon" />}
+            {!isProcessing && isLimitReached && <FaExclamationTriangle />}
             <span>{isLimitReached ? "LIMIT REACHED" : "START MONITORING"}</span>
           </button>
 
@@ -142,16 +139,46 @@ const Momentum: React.FC = () => {
           <div className="m-signal-grid">
             {signals.map((data) => {
               const sig = data.selected_signal;
-              const isBull = sig.direction === "UP";
+              const parseNum = (v: any) => {
+                const n = parseFloat(String(v).replace(/[^-0-9.]+/g, ""));
+                return Number.isFinite(n) ? n : null;
+              };
+              const expReturnVal =
+                parseNum(sig.return_magnitude_pct) ??
+                parseNum(sig.return_magnitude);
+              const expSignFromString = (() => {
+                const raw = (sig.return_magnitude_pct || sig.return_magnitude || "").trim();
+                if (raw.startsWith("+")) return 1;
+                if (raw.startsWith("-")) return -1;
+                return null;
+              })();
+              const ensemble = parseNum(sig.ensemble_score) ?? 0;
+              const probRaw =
+                parseNum(sig.prob_momentum) ?? parseNum(sig.prob_direction) ?? 0;
+              const prob = Math.max(0, Math.min(1, probRaw));
+              const directionLabel = (sig.direction || "").toUpperCase() || "N/A";
+              const isBull = directionLabel === "UP";
+              const expReturnDisplay =
+                sig.return_magnitude_pct ??
+                (expReturnVal !== null
+                  ? `${expReturnVal >= 0 ? "+" : ""}${expReturnVal.toFixed(3)}%`
+                  : "--");
+              const expIsPositive =
+                expReturnVal !== null
+                  ? expReturnVal >= 0
+                  : expSignFromString === 1;
+              const probUp = parseNum(sig.prob_up);
+              const probDown = parseNum(sig.prob_down);
+              const predDate = data.prediction_date || sig.date || "--";
+              const timeframe = data.timeframe || "—";
+              const cached = data.from_cache ? "Yes" : "No";
               return (
                 <div key={data.symbol} className="m-signal-card">
                   <div className="m-card-header">
                     <span className="m-symbol">{data.symbol}</span>
                     <div className="m-actions">
-                      <div
-                        className={`m-direction-tag ${isBull ? "up" : "down"}`}
-                      >
-                        {sig.direction}
+                      <div className={`m-direction-tag ${isBull ? "up" : "down"}`}>
+                        {directionLabel}
                       </div>
                       <button
                         className="m-btn-delete"
@@ -166,37 +193,72 @@ const Momentum: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="m-card-body">
-                    <div className="m-gauge-section">
-                      <MomentumGauge
-                        value={sig.prob_momentum}
-                        strength={sig.signal_strength}
-                        direction={sig.direction}
-                      />
-                    </div>
+                    <div className="m-card-body">
+                      <div className="m-gauge-section">
+                        <MomentumGauge
+                          value={prob}
+                          strength={sig.signal_strength}
+                          direction={directionLabel}
+                        />
+                      </div>
 
-                    <div className="m-data-table">
-                      <div className="m-row">
-                        <label>Ensemble</label>
-                        <span className="val-blue">
-                          {sig.ensemble_score.toFixed(4)}
-                        </span>
+                      <div className="m-data-table subtle">
+                        <div className="m-row">
+                          <label>Ensemble</label>
+                          <span className="val-white">{ensemble.toFixed(4)}</span>
+                        </div>
+                        <div className="m-row">
+                          <label>Exp. Return</label>
+                          <span className={expIsPositive ? "exp-pos" : "exp-neg"}>
+                            {expReturnDisplay}
+                          </span>
+                        </div>
+                        <div className="m-row">
+                          <label>Close (NPR)</label>
+                          <span className="val-white">{sig.close ?? "--"}</span>
+                        </div>
+                        <div className="m-row">
+                          <label>Prob Up</label>
+                          <span className="val-white">
+                            {probUp !== null ? probUp.toFixed(4) : "--"}
+                          </span>
+                        </div>
+                        <div className="m-row">
+                          <label>Prob Down</label>
+                          <span className="val-white">
+                            {probDown !== null ? probDown.toFixed(4) : "--"}
+                          </span>
+                        </div>
+                        <div className="m-row">
+                          <label>Timeframe</label>
+                          <span>{timeframe}</span>
+                        </div>
+                        <div className="m-row">
+                          <label>Date</label>
+                          <span>{predDate}</span>
+                        </div>
+                        <div className="m-row">
+                          <label>From Cache</label>
+                          <span>{cached}</span>
+                        </div>
                       </div>
-                      <div className="m-row">
-                        <label>Exp. Return</label>
-                        <span className={isBull ? "val-up" : "val-down"}>
-                          {sig.return_magnitude_pct}%
-                        </span>
-                      </div>
-                      <div className="m-row">
-                        <label>LTP (NPR)</label>
-                        <span className="val-bold">{sig.close}</span>
-                      </div>
-                    </div>
                   </div>
                 </div>
               );
             })}
+          </div>
+        )}
+        {signals.length > 0 && (
+          <div className="m-detail-notes global">
+            <h3>Signal Guide</h3>
+            <div><strong>Ensemble</strong> — blended model agreement for the call.</div>
+            <div><strong>Exp. Return</strong> — projected % move over the selected timeframe.</div>
+            <div><strong>Prob Up / Prob Down</strong> — directional likelihoods informing the label.</div>
+            <div><strong>Intensity</strong> — gauge percentage of momentum confidence.</div>
+            <div><strong>Close</strong> — last traded price used as baseline.</div>
+            <div><strong>Timeframe</strong> — horizon used for the prediction.</div>
+            <div><strong>Date</strong> — when the signal was generated.</div>
+            <div><strong>Cache</strong> — whether this signal was pulled from stored results.</div>
           </div>
         )}
       </main>

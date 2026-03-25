@@ -1,32 +1,21 @@
-:root {
-  --bg-dark: #0a0b0d;
-  --card-bg: #14161a;
-  --border-color: rgba(255, 255, 255, 0.08);
-  --text-main: #e3e6eb;
-  --text-muted: #9ba1ad;
-  --accent-up: #00ffbd;
-  --accent-down: #ff3b69;
-  --accent-blue: #3d8aff;
-}
-
 /* --- MAIN CONTAINER --- */
 .ab-dashboard {
-  background-color: var(--bg-dark);
-  color: var(--text-main);
+  background-color: var(--bg);
+  color: var(--text-primary);
   min-height: 100vh;
-  font-family: 'Inter', sans-serif;
+  font-family: "Space Grotesk", "Inter", system-ui, sans-serif;
   /* Remove padding-top/left/right so ticker can touch edges */
-  padding: 0; 
+  padding: 0;
 }
 
 /* --- FULL WIDTH TICKER TAPE --- */
 .ab-ticker-wrap {
   width: 100%;
   overflow: hidden;
-  background: var(--card-bg);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--muted-border);
   /* Ensure it spans exactly 100% of the viewport */
-  margin: 0; 
+  margin: 0;
   padding: 0;
 }
 
@@ -46,7 +35,7 @@
   align-items: center;
   gap: 12px;
   padding: 12px 30px;
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid var(--muted-border);
   font-size: 0.9rem;
   font-weight: 600;
 }
@@ -73,16 +62,17 @@
 }
 
 .ab-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
+  background: var(--surface-2);
+  border: 1px solid var(--muted-border);
   border-radius: 10px;
   padding: 14px;
+  box-shadow: var(--card-shadow);
 }
 
 .ab-compact-card label {
   font-size: 0.65rem;
   font-weight: 800;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-transform: uppercase;
 }
 
@@ -109,10 +99,10 @@
 .card-header-mini {
   font-size: 0.75rem;
   font-weight: 800;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   margin-bottom: 12px;
   text-transform: uppercase;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--muted-border);
   padding-bottom: 6px;
 }
 
@@ -143,16 +133,41 @@
   gap: 15px;
 }
 
+.ab-watchlist-placeholder {
+  padding: 16px;
+  border: 1px dashed var(--muted-border);
+  outline: 1px solid rgba(255, 255, 255, 0.04);
+  outline-offset: 4px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-secondary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.ab-placeholder-title {
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  color: #f6c454;
+}
+
+.ab-placeholder-copy {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
 .ab-ticker-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
+  background: var(--surface-2);
+  border: 1px solid var(--muted-border);
   border-radius: 10px;
   padding: 15px;
 }
 
 /* UTILITIES */
-.up { color: var(--accent-up); }
-.down { color: var(--accent-down); }
+.up { color: var(--accent-green); }
+.down { color: var(--accent-red); }
 
 .ab-header {
   display: flex;
@@ -167,9 +182,10 @@
   gap: 8px;
   font-size: 0.7rem;
   font-weight: 800;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
   padding: 6px 14px;
   border-radius: 20px;
+  border: 1px solid var(--muted-border);
 }
 
 .pulse-dot {
@@ -193,13 +209,13 @@
 
 /* Status Container Encapsulation */
 .ab-dashboard.is-live .ab-ticker-wrap {
-  border-bottom: 1px solid rgba(0, 255, 189, 0.3);
+  border-bottom: 1px solid rgba(56, 208, 168, 0.35);
   box-shadow: 0 4px 12px rgba(0, 255, 189, 0.05);
 }
 
 .ab-dashboard.is-closed .ab-ticker-wrap {
-  border-bottom: 1px solid rgba(255, 59, 105, 0.3);
-  box-shadow: 0 4px 12px rgba(255, 59, 105, 0.05);
+  border-bottom: 1px solid rgba(255, 107, 107, 0.32);
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.06);
 }
 
 /* Status Pill Styles */
@@ -216,14 +232,14 @@
 
 .is-live .ab-status-pill {
   background: rgba(0, 255, 189, 0.05);
-  border: 1px solid rgba(0, 255, 189, 0.2);
-  color: #00ffbd;
+  border: 1px solid rgba(56, 208, 168, 0.25);
+  color: var(--accent-green);
 }
 
 .is-closed .ab-status-pill {
   background: rgba(255, 59, 105, 0.05);
   border: 1px solid rgba(255, 59, 105, 0.2);
-  color: #ff3b69;
+  color: var(--accent-red);
 }
 
 /* Neon LED Dot */
@@ -234,14 +250,14 @@
 }
 
 .is-live .neon-dot {
-  background-color: #00ffbd;
-  box-shadow: 0 0 8px #00ffbd, 0 0 12px #00ffbd;
+  background-color: var(--accent-green);
+  box-shadow: 0 0 8px var(--accent-green), 0 0 12px var(--accent-green);
   animation: neonPulseGreen 2s infinite;
 }
 
 .is-closed .neon-dot {
-  background-color: #ff3b69;
-  box-shadow: 0 0 8px #ff3b69, 0 0 12px #ff3b69;
+  background-color: var(--accent-red);
+  box-shadow: 0 0 8px var(--accent-red), 0 0 12px var(--accent-red);
   animation: neonPulseRed 2s infinite;
 }
 
