@@ -1,0 +1,41 @@
+#add in  src/routers/market_data.py
+ 
+#imports and install
+import httpx
+import asyncio
+
+
+
+
+
+#routes *in end of file
+NEPSE_DOCKER_URL = "http://nepseapi:8000"
+
+@marketDataRouter.get("/live-overview", status_code=200)
+async def get_live_market_overview():
+    async with httpx.AsyncClient() as client:
+        try:
+            index_task = client.get(f"{NEPSE_DOCKER_URL}/NepseIndex", timeout=5.0)
+            gainers_task = client.get(f"{NEPSE_DOCKER_URL}/TopGainers", timeout=5.0)
+            losers_task = client.get(f"{NEPSE_DOCKER_URL}/TopLosers", timeout=5.0)
+
+            responses = await asyncio.gather(index_task, gainers_task, losers_task)
+
+            return {
+                "index": responses[0].json(),
+                "TopGainers": responses[1].json(),
+                "TopLosers": responses[2].json()
+            }
+        except httpx.RequestError:
+            raise HTTPException(status_code=503, detail="NEPSE service unavailable")
+
+@marketDataRouter.get("/live-full", status_code=200)
+async def get_live_full_market():
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(f"{NEPSE_DOCKER_URL}/LiveMarket", timeout=10.0)
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail="Error from NEPSE service")
+            return response.json()
+        except httpx.RequestError:
+            raise HTTPException(status_code=503, detail="NEPSE Docker service unreachable on port 8000")
