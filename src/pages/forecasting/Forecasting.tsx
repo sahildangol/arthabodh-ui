@@ -7,7 +7,7 @@ import { generateFakeForecast } from "../../common/utils/fakeForecast";
 import "./Forecasting.css";
 
 const API_BASE = "http://localhost:8001";
-// Placeholder for future live line endpoint; keep blank to use local fallback.
+// Placeholder for future live line endpoint
 const LINE_API = "";
 
 type Company = {
@@ -58,7 +58,6 @@ const buildFallbackSeries = (symbol: string, days: number): LinePoint[] => {
   if (SAMPLE_LINE_DATA[symbol]) {
     const sample = SAMPLE_LINE_DATA[symbol];
     if (days >= sample.length) return sample;
-    // keep the most recent actual points and all predicted
     const actual = sample.filter((p) => !p.is_predicted).slice(-(days - 2));
     const predicted = sample.filter((p) => p.is_predicted);
     return [...actual, ...predicted];
