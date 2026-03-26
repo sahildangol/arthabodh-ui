@@ -1,6 +1,5 @@
 import {Route,Routes,Navigate} from 'react-router';
 import MainLayout from './common/layouts/MainLayout';
-import StyleGuide from './pages/StyleGuide';
 import NotFound from './pages/NotFound';
 import Dashboard from './pages/dashboard/Dashboard';
 import Momentum from './pages/momentum/Momentum';
@@ -17,7 +16,6 @@ const AppRoutes = () => {
         {/* public routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/style-guide" element={<StyleGuide />} />
         <Route path="*" element={<NotFound />} />
         
         {/* protected routes */}

@@ -1,5 +1,4 @@
 import axios from "axios";
-import { config } from "dotenv";
 
 //auth,watchlist etc with protected routes
 export const authClient = axios.create({

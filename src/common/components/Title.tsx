@@ -1,10 +1,15 @@
-import React from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useNavigate } from "react-router";
 import { Twirl as Hamburger } from "hamburger-react";
 import { FaUserCircle, FaSignOutAlt } from "react-icons/fa";
 import "./Title.css";
 
-export const Title = ({ isOpen, setIsOpen }) => {
+type TitleProps = {
+  isOpen: boolean;
+  setIsOpen: Dispatch<SetStateAction<boolean>>;
+};
+
+export const Title = ({ isOpen, setIsOpen }: TitleProps) => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 

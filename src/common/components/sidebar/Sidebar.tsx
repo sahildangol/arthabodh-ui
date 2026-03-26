@@ -3,10 +3,13 @@ import { IoIosSettings } from "react-icons/io";
 import { IoStatsChartSharp } from "react-icons/io5";
 import { FaGaugeSimple } from "react-icons/fa6";
 import { MdDashboard } from "react-icons/md";
-import { HiCode } from "react-icons/hi"; // For Style Guide
 import "./Sidebar.css";
 
-const Sidebar = ({ isOpen }) => {
+type SidebarProps = {
+  isOpen: boolean;
+};
+
+const Sidebar = ({ isOpen }: SidebarProps) => {
   return (
     <div className={`sidebar ${isOpen ? "open" : "collapsed"}`}>
       <div className="sidebar-label">NAVIGATION MENU</div>
@@ -55,17 +58,6 @@ const Sidebar = ({ isOpen }) => {
             >
               <IoIosSettings className="icon settings-icon" />
               <span>Settings</span>
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="/style-guide"
-              className={({ isActive }) =>
-                isActive ? "nav-item active" : "nav-item"
-              }
-            >
-              <HiCode className="icon" />
-              <span>Style Guide</span>
             </NavLink>
           </li>
         </ul>

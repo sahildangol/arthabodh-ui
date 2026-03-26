@@ -9,7 +9,7 @@ export interface User {
 
 export interface LoginResponse {
   token: string;
-  user: User;  //need to update this to get the user details from the backend,    
+  user?: User;
 }
 
 export interface SignupRequest {

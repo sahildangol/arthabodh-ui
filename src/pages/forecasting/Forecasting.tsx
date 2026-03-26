@@ -1,358 +1,912 @@
 import { useEffect, useMemo, useState } from "react";
 import Chart from "react-apexcharts";
 import type { ApexOptions } from "apexcharts";
-import { ApexOptions } from "apexcharts";
 import { IoIosArrowDropdown } from "react-icons/io";
 import { generateFakeForecast } from "../../common/utils/fakeForecast";
+import { useCompanyWatchlist } from "../../common/hooks/useCompanyWatchlist";
+import {
+  MarketPreferenceService,
+  type Company,
+} from "../../services/marketPreferenceService";
 import "./Forecasting.css";
 
-const API_BASE = "http://localhost:8001";
-// Placeholder for future live line endpoint
-const LINE_API = "";
-
-type Company = {
-  company_id: number;
-  symbol: string;
-  company_name?: string;
-};
+const HISTORY_WINDOWS = [10, 30] as const;
 
 type LinePoint = {
-  x: string | number | Date;
+  x: string;
   y: number;
-  is_predicted?: boolean;
 };
 
-const SAMPLE_COMPANIES: Company[] = [
-  {
-    company_id: 1,
-    symbol: "NABIL",
-    company_name: "Nabil Bank",
-  },
-];
-
-const SAMPLE_LINE_DATA: Record<string, LinePoint[]> = {
-  NABIL: [
-    { x: "2026-03-20", y: 450.5, is_predicted: false },
-    { x: "2026-03-21", y: 455.2, is_predicted: false },
-    { x: "2026-03-22", y: 448.0, is_predicted: false },
-    { x: "2026-03-23", y: 462.1, is_predicted: true },
-    { x: "2026-03-24", y: 459.8, is_predicted: true },
-  ],
+type TimelinePoint = {
+  date?: string;
+  point_type?: string;
+  close?: number | string | null;
 };
 
-const normalizeLinePayload = (raw: unknown): LinePoint[] => {
-  if (Array.isArray(raw)) {
-    const first = raw[0] as any;
-    if (first && Array.isArray(first.data)) {
-      return (first.data as LinePoint[]) || [];
-    }
-    // Already an array of points
-    if (raw.every((p: any) => p && p.x !== undefined && p.y !== undefined)) {
-      return raw as LinePoint[];
+type ForecastPoint = {
+  horizon_day?: number;
+  forecast_date?: string;
+  predicted_close?: number | string | null;
+  predicted_return?: number | null;
+};
+
+type PastDayPoint = {
+  date?: string;
+  close?: number | string | null;
+};
+
+type Signal = {
+  confidence?: string;
+  model_score?: number | null;
+  prob_up?: number | null;
+  prob_down?: number | null;
+  return_magnitude_pct?: string;
+  timeline_10d?: TimelinePoint[] | null;
+  forecast_next_5d?: ForecastPoint[] | null;
+};
+
+type AdvancedPredictionResponse = {
+  symbol?: string;
+  generated_at?: string;
+  prediction_date?: string;
+  from_cache?: boolean;
+  selected_signal?: Signal | null;
+  all_signals?: Signal[] | null;
+  past_5_days?: PastDayPoint[] | null;
+};
+
+type ForecastRow = {
+  day: number;
+  date: string;
+  close: number;
+  changePct?: number;
+};
+
+type SignalTone = "buy" | "neutral" | "sell";
+type ChartSeries = {
+  name: string;
+  type: "line" | "scatter" | "area";
+  data: LinePoint[];
+};
+
+type ForecastViewData = {
+  symbol: string;
+  history: LinePoint[];
+  current: LinePoint | null;
+  forecast: LinePoint[];
+  rows: ForecastRow[];
+  generatedAt?: string;
+  predictionDate?: string;
+  fromCache: boolean;
+  confidenceLabel: string;
+  modelConfidencePct?: number;
+  changePct?: number;
+  currentPrice?: number;
+  day5Price?: number;
+  rangeLow?: number;
+  rangeHigh?: number;
+};
+
+const isPresent = <T,>(value: T | null): value is T => value !== null;
+
+const toNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+};
+
+const toIsoDate = (value: unknown): string | null => {
+  if (!value) return null;
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+};
+
+const byDateAsc = (a: LinePoint, b: LinePoint) => {
+  const left = new Date(a.x).getTime();
+  const right = new Date(b.x).getTime();
+  return left - right;
+};
+
+const clamp = (value: number, min: number, max: number) => {
+  if (value < min) return min;
+  if (value > max) return max;
+  return value;
+};
+
+const parseTimelinePoints = (
+  points: TimelinePoint[] | null | undefined,
+  pointType: "history" | "forecast",
+): LinePoint[] => {
+  if (!Array.isArray(points)) return [];
+
+  return points
+    .map((point) => {
+      if (point.point_type !== pointType) return null;
+      const x = toIsoDate(point.date);
+      const y = toNumber(point.close);
+      if (!x || y === null) return null;
+
+      return { x, y };
+    })
+    .filter(isPresent)
+    .sort(byDateAsc);
+};
+
+const parsePastSeries = (points: PastDayPoint[] | null | undefined): LinePoint[] => {
+  if (!Array.isArray(points)) return [];
+
+  return points
+    .map((point) => {
+      const x = toIsoDate(point.date);
+      const y = toNumber(point.close);
+      if (!x || y === null) return null;
+      return { x, y };
+    })
+    .filter(isPresent)
+    .sort(byDateAsc);
+};
+
+const parseForecastRows = (
+  points: ForecastPoint[] | null | undefined,
+): ForecastRow[] => {
+  if (!Array.isArray(points)) return [];
+
+  return points
+    .map((point, idx) => {
+      const date = toIsoDate(point.forecast_date);
+      const close = toNumber(point.predicted_close);
+      if (!date || close === null) return null;
+
+      const row: ForecastRow = {
+        day: point.horizon_day ?? idx + 1,
+        date,
+        close,
+      };
+
+      if (typeof point.predicted_return === "number" && Number.isFinite(point.predicted_return)) {
+        row.changePct = point.predicted_return * 100;
+      }
+
+      return row;
+    })
+    .filter((row): row is ForecastRow => Boolean(row))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+};
+
+const parseModelConfidence = (signal: Signal | null): number | undefined => {
+  if (!signal) return undefined;
+
+  if (typeof signal.model_score === "number" && Number.isFinite(signal.model_score)) {
+    const normalized = signal.model_score <= 1 ? signal.model_score * 100 : signal.model_score;
+    return clamp(normalized, 0, 100);
+  }
+
+  const probUp = typeof signal.prob_up === "number" ? signal.prob_up : null;
+  const probDown = typeof signal.prob_down === "number" ? signal.prob_down : null;
+
+  if (probUp === null && probDown === null) return undefined;
+
+  const strongerSide = Math.max(probUp ?? 0, probDown ?? 0);
+  return clamp(strongerSide * 100, 0, 100);
+};
+
+const parsePredictionResponse = (
+  raw: unknown,
+  symbol: string,
+  historyWindow: number,
+): ForecastViewData | null => {
+  if (!raw || typeof raw !== "object") return null;
+
+  const payload = raw as AdvancedPredictionResponse;
+  const signal = payload.selected_signal ?? payload.all_signals?.[0] ?? null;
+
+  let history = parseTimelinePoints(signal?.timeline_10d, "history");
+  const forecastOnly = parseTimelinePoints(signal?.timeline_10d, "forecast");
+
+  if (!history.length) {
+    history = parsePastSeries(payload.past_5_days);
+  }
+
+  history = history.slice(-historyWindow);
+
+  const current = history[history.length - 1] ?? null;
+  const forecast = current ? [current, ...forecastOnly] : [...forecastOnly];
+
+  const rows = parseForecastRows(signal?.forecast_next_5d);
+  const fallbackRows = !rows.length
+    ? forecastOnly.map((point, idx) => ({
+      day: idx + 1,
+      date: String(point.x),
+      close: point.y,
+    }))
+    : rows;
+
+  const currentPrice = current?.y;
+  const day5Price = fallbackRows[fallbackRows.length - 1]?.close;
+
+  let changePct: number | undefined;
+  if (
+    typeof currentPrice === "number"
+    && Number.isFinite(currentPrice)
+    && currentPrice !== 0
+    && typeof day5Price === "number"
+    && Number.isFinite(day5Price)
+  ) {
+    changePct = ((day5Price - currentPrice) / currentPrice) * 100;
+  } else if (signal?.return_magnitude_pct) {
+    const numeric = Number(signal.return_magnitude_pct.replace("%", ""));
+    if (Number.isFinite(numeric)) {
+      changePct = numeric;
     }
   }
-  return [];
+
+  const closesForRange = fallbackRows.map((row) => row.close);
+  const rangeLow = closesForRange.length ? Math.min(...closesForRange) : undefined;
+  const rangeHigh = closesForRange.length ? Math.max(...closesForRange) : undefined;
+
+  if (!history.length && !forecastOnly.length) {
+    return null;
+  }
+
+  return {
+    symbol: payload.symbol || symbol,
+    history,
+    current,
+    forecast,
+    rows: fallbackRows,
+    generatedAt: payload.generated_at,
+    predictionDate: payload.prediction_date,
+    fromCache: Boolean(payload.from_cache),
+    confidenceLabel: signal?.confidence?.toUpperCase() || "UNSPECIFIED",
+    modelConfidencePct: parseModelConfidence(signal),
+    changePct,
+    currentPrice,
+    day5Price,
+    rangeLow,
+    rangeHigh,
+  };
 };
 
-const buildFallbackSeries = (symbol: string, days: number): LinePoint[] => {
-  if (SAMPLE_LINE_DATA[symbol]) {
-    const sample = SAMPLE_LINE_DATA[symbol];
-    if (days >= sample.length) return sample;
-    const actual = sample.filter((p) => !p.is_predicted).slice(-(days - 2));
-    const predicted = sample.filter((p) => p.is_predicted);
-    return [...actual, ...predicted];
+const buildMockViewData = (symbol: string, historyWindow: number): ForecastViewData => {
+  const seeded = generateFakeForecast(symbol, Math.max(historyWindow, 10), 0.35);
+  const history = seeded
+    .filter((point) => !point.is_predicted)
+    .map((point) => ({ x: point.x, y: point.y }))
+    .slice(-historyWindow);
+
+  const forecastOnly = seeded
+    .filter((point) => point.is_predicted)
+    .map((point) => ({ x: point.x, y: point.y }));
+
+  const current = history[history.length - 1] ?? null;
+  const forecast = current ? [current, ...forecastOnly] : [...forecastOnly];
+
+  const rows = forecastOnly.map((point, idx) => {
+    const previous = idx === 0 ? current?.y : forecastOnly[idx - 1]?.y;
+    const row: ForecastRow = {
+      day: idx + 1,
+      date: String(point.x),
+      close: point.y,
+    };
+
+    if (typeof previous === "number" && previous !== 0) {
+      row.changePct = ((point.y - previous) / previous) * 100;
+    }
+
+    return row;
+  });
+
+  const currentPrice = current?.y;
+  const day5Price = rows[rows.length - 1]?.close;
+
+  const changePct =
+    typeof currentPrice === "number"
+    && currentPrice !== 0
+    && typeof day5Price === "number"
+      ? ((day5Price - currentPrice) / currentPrice) * 100
+      : undefined;
+
+  const rangeLow = rows.length ? Math.min(...rows.map((row) => row.close)) : undefined;
+  const rangeHigh = rows.length ? Math.max(...rows.map((row) => row.close)) : undefined;
+
+  return {
+    symbol,
+    history,
+    current,
+    forecast,
+    rows,
+    predictionDate: new Date().toISOString(),
+    generatedAt: new Date().toISOString(),
+    fromCache: false,
+    confidenceLabel: "SIMULATED",
+    modelConfidencePct: 67,
+    changePct,
+    currentPrice,
+    day5Price,
+    rangeLow,
+    rangeHigh,
+  };
+};
+
+const formatDate = (value?: string | number | Date) => {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+};
+
+const formatAxisDate = (value: string | number) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return new Intl.DateTimeFormat("en", {
+    month: "numeric",
+    day: "numeric",
+  }).format(date);
+};
+
+const formatCurrency = (value?: number) => {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "--";
+  return `NPR ${value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+const formatPercent = (value?: number, digits = 2) => {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "--";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(digits)}%`;
+};
+
+const resolveSignalTone = (changePct?: number): SignalTone => {
+  if (typeof changePct !== "number" || !Number.isFinite(changePct)) {
+    return "neutral";
   }
-  return generateFakeForecast(symbol || "SAMPLE", days);
+  if (changePct > 0.05) return "buy";
+  if (changePct < -0.05) return "sell";
+  return "neutral";
+};
+
+const resolveRowClass = (changePct?: number) => {
+  if (typeof changePct !== "number" || !Number.isFinite(changePct)) {
+    return "";
+  }
+  if (changePct > 0.01) return "cell-pos";
+  if (changePct < -0.01) return "cell-neg";
+  return "cell-flat";
 };
 
 const Forecasting = () => {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const {
+    companyOptions,
+    defaultCompany,
+  } = useCompanyWatchlist();
+
+  const [selectedSymbol, setSelectedSymbol] = useState("");
   const [isOpen, setIsOpen] = useState(false);
-  const [lineSeries, setLineSeries] = useState<{ name: string; data: LinePoint[] }[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isMock, setIsMock] = useState(false);
   const [recent, setRecent] = useState<Company[]>([]);
-  const [timeframe, setTimeframe] = useState(7);
+  const [historyWindow, setHistoryWindow] = useState<number>(10);
+  const [loading, setLoading] = useState(false);
+  const [isMock, setIsMock] = useState(false);
+  const [viewData, setViewData] = useState<ForecastViewData | null>(null);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadCompanies = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/company/`);
-        const data: Company[] = await res.json();
-        const list = data.length ? data : SAMPLE_COMPANIES;
-        setCompanies(list);
-        if (list.length > 0) setSelectedCompany(list[0]);
-      } catch (err) {
-        console.error("Init Error:", err);
-        setCompanies(SAMPLE_COMPANIES);
-        setSelectedCompany(SAMPLE_COMPANIES[0]);
-      }
-    };
-    loadCompanies();
-  }, []);
+  const selectedCompany = useMemo(() => {
+    if (selectedSymbol) {
+      const matched = companyOptions.find((company) => company.symbol === selectedSymbol);
+      if (matched) return matched;
+    }
 
-  const companyListWithWatchlistFirst = useMemo(
-    () => companies,
-    [companies],
-  );
+    return defaultCompany ?? companyOptions[0] ?? null;
+  }, [selectedSymbol, companyOptions, defaultCompany]);
 
   useEffect(() => {
     if (!selectedCompany) return;
-    const updateGraph = async () => {
+
+    const controller = new AbortController();
+
+    const loadPrediction = async () => {
       setLoading(true);
+      setPredictionError(null);
       let usedMock = false;
 
-      const lineData = await (async () => {
-        try {
-          if (!LINE_API) throw new Error("No line API path set");
-          const res = await fetch(
-            `${LINE_API}/${selectedCompany.company_id}?window=${timeframe}`,
-          );
-          if (!res.ok) throw new Error("Bad line response");
-          const raw = await res.json();
-          const parsed = normalizeLinePayload(raw);
-          if (!parsed.length) throw new Error("Empty line data");
-          return parsed;
-        } catch {
-          usedMock = true;
-          return buildFallbackSeries(selectedCompany.symbol, timeframe);
-        }
-      })();
-      const actualPoints = lineData
-        .filter((p) => !p.is_predicted)
-        .sort((a, b) => new Date(a.x).getTime() - new Date(b.x).getTime());
-      const predictedPoints = lineData
-        .filter((p) => p.is_predicted)
-        .sort((a, b) => new Date(a.x).getTime() - new Date(b.x).getTime());
+      try {
+        const payload = await MarketPreferenceService.getAdvancedPrediction(
+          selectedCompany.symbol,
+        );
+        const parsed = parsePredictionResponse(payload, selectedCompany.symbol, historyWindow);
 
-      if (predictedPoints.length) {
-        const stitchedPredicted = [
-          actualPoints[actualPoints.length - 1],
-          ...predictedPoints,
-        ];
-        setLineSeries([
-          { name: "Actual", data: actualPoints },
-          { name: "Predicted", data: stitchedPredicted },
-        ]);
-      } else {
-        setLineSeries([{ name: "Price", data: actualPoints }]);
+        if (!parsed) {
+          setViewData(null);
+          setIsMock(false);
+          setPredictionError(
+            `Prediction data is not available for ${selectedCompany.symbol} yet.`,
+          );
+          setLoading(false);
+          return;
+        }
+
+        setViewData(parsed);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+
+        if (MarketPreferenceService.isPredictionUnavailableError(error)) {
+          setViewData(null);
+          setIsMock(false);
+          setPredictionError(
+            `Prediction is unavailable for ${selectedCompany.symbol} right now.`,
+          );
+          setLoading(false);
+          return;
+        }
+
+        console.warn("Falling back to simulated forecast:", error);
+        usedMock = true;
+        setPredictionError("Live prediction failed. Showing simulated forecast.");
+        setViewData(buildMockViewData(selectedCompany.symbol, historyWindow));
       }
 
       setIsMock(usedMock);
-      setRecent((prev) => {
-        const filtered = prev.filter(
-          (c) => c.symbol !== selectedCompany.symbol,
-        );
-        return [selectedCompany, ...filtered].slice(0, 3);
+      setRecent((previous) => {
+        const filtered = previous.filter((item) => item.symbol !== selectedCompany.symbol);
+        return [selectedCompany, ...filtered].slice(0, 4);
       });
       setLoading(false);
     };
-    updateGraph();
-  }, [selectedCompany, timeframe]);
 
-  const fmtDate = (value?: string | number | Date) => {
-    if (!value) return "--";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "--";
-    return new Intl.DateTimeFormat("en", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }).format(date);
-  };
+    loadPrediction();
 
-  const { displaySeries, displayOptions, range } = useMemo(() => {
-    const series = lineSeries;
+    return () => {
+      controller.abort();
+    };
+  }, [selectedCompany, historyWindow]);
 
-    const firstActual = series[0]?.data.find((p) => !p.is_predicted);
-    const lastActual = [...(series[0]?.data || [])]
-      .filter((p) => !p.is_predicted)
-      .slice(-1)[0];
-    const lastPredicted = [...(series[1]?.data || [])].slice(-1)[0];
+  const series = (() => {
+    if (!viewData) return [] as ChartSeries[];
 
-    const base: ApexOptions = {
+    const output: ChartSeries[] = [];
+
+    if (viewData.history.length) {
+      output.push({ name: "Past Trend", type: "line", data: viewData.history });
+    }
+
+    if (viewData.current) {
+      output.push({ name: "Current Price", type: "scatter", data: [viewData.current] });
+    }
+
+    if (viewData.forecast.length > 1) {
+      output.push({ name: "Predicted Path", type: "area", data: viewData.forecast });
+    }
+
+    return output;
+  })();
+
+  const chartOptions = useMemo((): ApexOptions => {
+    const tone = resolveSignalTone(viewData?.changePct);
+    const historyColor = "#334155";
+    const currentColor = "#1d4ed8";
+    const forecastColor =
+      tone === "buy"
+        ? "#10b981"
+        : tone === "sell"
+          ? "#ef4444"
+          : "#f59e0b";
+    const toneBorder =
+      tone === "buy"
+        ? "#059669"
+        : tone === "sell"
+          ? "#dc2626"
+          : "#d97706";
+    const toneFill =
+      tone === "buy"
+        ? "rgba(16, 185, 129, 0.18)"
+        : tone === "sell"
+          ? "rgba(239, 68, 68, 0.16)"
+        : "rgba(245, 158, 11, 0.18)";
+
+    const forecastStart = viewData?.forecast[1]?.x;
+    const forecastEnd = viewData?.forecast[viewData.forecast.length - 1]?.x;
+
+    const x1 = forecastStart ? new Date(forecastStart).getTime() : null;
+    const x2 = forecastEnd ? new Date(forecastEnd).getTime() : null;
+
+    const annotations =
+      typeof x1 === "number"
+      && Number.isFinite(x1)
+      && typeof x2 === "number"
+      && Number.isFinite(x2)
+      && x2 > x1
+        ? {
+          xaxis: [
+            {
+              x: x1,
+              x2,
+              fillColor: toneFill,
+              label: {
+                borderColor: toneBorder,
+                style: {
+                  color: toneBorder,
+                  background:
+                    tone === "buy"
+                      ? "#d1fae5"
+                      : tone === "sell"
+                        ? "#fee2e2"
+                        : "#fef3c7",
+                  fontSize: "10px",
+                  fontWeight: "700",
+                },
+                text: "Forecast Window",
+              },
+            },
+          ],
+        }
+        : undefined;
+
+    return {
       chart: {
-        background: "#0f1626",
+        type: "line",
+        background: "transparent",
         toolbar: { show: false },
-        animations: { enabled: false },
-        foreColor: "#e6edf7",
+        zoom: { enabled: false },
         parentHeightOffset: 0,
+        animations: {
+          enabled: true,
+          speed: 380,
+        },
+        dropShadow: {
+          enabled: true,
+          top: 4,
+          left: 0,
+          blur: 10,
+          color: forecastColor,
+          opacity: 0.22,
+        },
+      },
+      colors: [historyColor, currentColor, forecastColor],
+      stroke: {
+        width: [3, 0, 4],
+        curve: "smooth",
+        dashArray: [0, 0, 7],
+      },
+      fill: {
+        type: ["solid", "solid", "gradient"],
+        opacity: [1, 1, 0.26],
+        gradient: {
+          shade: "light",
+          type: "vertical",
+          shadeIntensity: 0.35,
+          opacityFrom: 0.32,
+          opacityTo: 0.03,
+          stops: [0, 86, 100],
+        },
+      },
+      markers: {
+        size: [0, 10, 5],
+        colors: [historyColor, currentColor, forecastColor],
+        strokeColors: "#ffffff",
+        strokeWidth: [0, 4, 2],
+        hover: {
+          sizeOffset: 2,
+        },
       },
       xaxis: {
         type: "datetime",
         labels: {
           style: {
-            colors: "#e6edf7",
+            colors: "#64748b",
             fontSize: "11px",
-            fontWeight: 700,
+            fontWeight: 600,
           },
-          offsetY: 16,
+          formatter(value) {
+            return formatAxisDate(value);
+          },
         },
-        title: {
-          text: "Date",
-          offsetY: 34,
-          style: { fontSize: "12px", fontWeight: 800 },
+        axisBorder: {
+          color: "#dbe3ef",
         },
-        axisBorder: { show: true, color: "#233149", height: 1 },
-        axisTicks: { show: true, color: "#233149" },
+        axisTicks: {
+          color: "#dbe3ef",
+        },
       },
       yaxis: {
-        opposite: false,
-        title: {
-          text: "Price",
-          offsetX: -6,
-          style: { fontSize: "12px", fontWeight: 800 },
-        },
         labels: {
-          style: { colors: "#e6edf7", fontSize: "11px", fontWeight: 700 },
+          style: {
+            colors: "#64748b",
+            fontSize: "11px",
+            fontWeight: 600,
+          },
+          formatter(value) {
+            return value.toFixed(0);
+          },
         },
-        axisBorder: { show: true, color: "#233149" },
-        axisTicks: { show: true, color: "#233149" },
       },
       grid: {
-        borderColor: "rgba(255,255,255,0.08)",
+        borderColor: "#e4eaf3",
         strokeDashArray: 4,
-        padding: { left: 12, right: 12, top: 12, bottom: 16 },
+        padding: {
+          left: 12,
+          right: 12,
+          top: 12,
+          bottom: 6,
+        },
       },
-      theme: { mode: "dark" },
-    };
-
-    const lineOptions: ApexOptions = {
-      ...base,
-      chart: { ...base.chart, type: "line" },
-      stroke: {
-        width: series.length > 1 ? [3, 3] : 3,
-        curve: "smooth" as const,
-        dashArray: series.length > 1 ? [0, 6] : 0,
+      annotations,
+      legend: {
+        show: true,
+        position: "bottom",
+        horizontalAlign: "center",
+        labels: {
+          colors: "#334155",
+        },
       },
-      markers: { size: 4, strokeWidth: 2, strokeColors: "#0c1f36" },
-      colors: ["#1f6bff", "#f6ad55"],
       tooltip: {
         shared: true,
         intersect: false,
-        theme: "light",
-        marker: { show: false },
-        style: { fontSize: "12px", color: "#0f172a" },
-        fillSeriesColor: false,
+        x: {
+          format: "dd MMM yyyy",
+        },
+        y: {
+          formatter(value) {
+            return `${value.toFixed(2)} NPR`;
+          },
+        },
       },
-      legend: { show: false },
+      dataLabels: {
+        enabled: false,
+      },
     };
+  }, [viewData]);
 
-    return {
-      displaySeries: series,
-      displayOptions: lineOptions,
-      range: {
-        start: firstActual?.x,
-        actualEnd: lastActual?.x,
-        forecastEnd: lastPredicted?.x || lastActual?.x,
-      },
-    };
-  }, [lineSeries]);
+  const confidencePct = viewData?.modelConfidencePct;
+  const confidenceWidth =
+    typeof confidencePct === "number" && Number.isFinite(confidencePct)
+      ? clamp(confidencePct, 0, 100)
+      : 0;
+
+  const signalTone = resolveSignalTone(viewData?.changePct);
+  const changeClass =
+    signalTone === "buy"
+      ? "pos"
+      : signalTone === "sell"
+        ? "neg"
+        : "flat";
+  const signalLabel =
+    signalTone === "buy"
+      ? "Buy Zone"
+      : signalTone === "sell"
+        ? "Sell Zone"
+        : "Neutral Zone";
+  const feedBadgeClass =
+    predictionError && !viewData ? "warning" : isMock ? "warning" : "live";
+  const feedBadgeText =
+    predictionError && !viewData
+      ? "PREDICTION UNAVAILABLE"
+      : isMock
+        ? "SIMULATED FEED"
+        : "LIVE FEED";
 
   return (
     <div className="f-container">
       <main className="f-main">
         <header className="f-header">
           <div className="f-title-group">
-            <h2>FORECASTING ANALYSIS</h2>
-            <p>Short-term price path with live and projected points.</p>
+            <h2>Forecasting Engine</h2>
+            <p>5-day price trajectory predictions powered by AutoTFT</p>
           </div>
-          <div className={`f-status-badge ${isMock ? "warning" : "live"}`}>
-            {isMock ? "SIMULATED_DATA" : "LIVE_MARKET"}
-          </div>
-        </header>
 
-        <div className="f-grid">
-          {/* Main Chart Section */}
-          <section className="f-card f-chart-area">
-            <div className="f-card-header">
-              <div className="f-label">
-                PRICE GRAPH
-              </div>
-              <div className="f-actions">
-                <div className="f-segment">
-                  {[7, 30].map((d) => (
-                    <button
-                      key={d}
-                      className={`f-tab ${timeframe === d ? "active" : ""}`}
-                      onClick={() => setTimeframe(d)}
-                    >
-                      {d}D
-                    </button>
-                  ))}
-                </div>
-              </div>
+          <div className="f-header-controls">
+            <div className={`f-status-badge ${feedBadgeClass}`}>
+              {feedBadgeText}
             </div>
-            <div className="f-chart-wrapper">
-              {loading ? (
-                <div className="f-loader">Loading...</div>
-              ) : (
-                <Chart
-                  key={`${selectedCompany?.company_id}-${timeframe}`}
-                  options={displayOptions}
-                  series={displaySeries}
-                  type="line"
-                  height={300}
-                  width="100%"
-                />
-              )}
-            </div>
-            <div className="f-chart-foot">
-              <span className="accent">{selectedCompany?.symbol || "---"}</span>:{" "}
-              {fmtDate(range.start)} → {fmtDate(range.forecastEnd)}
-            </div>
-          </section>
 
-          {/* Sidebar Controls */}
-          <aside className="f-controls">
-            <div className="f-card">
-              <div className="f-field-label-row">
-                <label className="f-field-label">SELECT STOCK</label>
-                <span className="f-field-hint">Pick any listed company</span>
-              </div>
-              <div
+            <div className="f-select-wrap">
+              <span className="f-field-label">Select Asset</span>
+              <button
+                type="button"
                 className="f-dropdown-trigger"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => setIsOpen((open) => !open)}
               >
                 <span>{selectedCompany?.symbol || "CHOOSE"}</span>
                 <IoIosArrowDropdown className={isOpen ? "rotate" : ""} />
-              </div>
+              </button>
+
               {isOpen && (
                 <ul className="f-dropdown-list">
-                  {companyListWithWatchlistFirst.map((comp) => (
+                  {companyOptions.map((company) => (
                     <li
-                      key={comp.company_id}
+                      key={company.company_id}
                       onClick={() => {
-                        setSelectedCompany(comp);
+                        setSelectedSymbol(company.symbol);
                         setIsOpen(false);
                       }}
                     >
-                      {comp.symbol}
+                      <strong>{company.symbol}</strong>
+                      <span>{company.company_name || "Listed Company"}</span>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
+          </div>
+        </header>
 
-            <div className="f-card">
-              <label className="f-field-label">
-                RECENTLY VIEWED
-              </label>
-              <div className="f-history-list">
-                {recent.map((r) => (
-                  <div
-                    key={r.symbol}
-                    className={`f-history-item ${r.symbol === selectedCompany?.symbol ? "active" : ""}`}
-                    onClick={() => setSelectedCompany(r)}
+        <div className="f-grid">
+          <section className={`f-card f-chart-card tone-${signalTone}`}>
+            <div className="f-card-header">
+              <div>
+                <p className="f-section-kicker">Trajectory & Signal Split</p>
+                <p className="f-section-subtext">
+                  Past prices, current spot, and upcoming predicted path.
+                </p>
+              </div>
+
+              <div className="f-segment">
+                {HISTORY_WINDOWS.map((days) => (
+                  <button
+                    key={days}
+                    type="button"
+                    className={`f-tab ${historyWindow === days ? "active" : ""}`}
+                    onClick={() => setHistoryWindow(days)}
                   >
-                    <span className="dot" /> {r.symbol}
-                  </div>
+                    {days}D
+                  </button>
                 ))}
               </div>
             </div>
+
+            <div className="f-legend-row">
+              <div className={`f-signal-strip tone-${signalTone}`}>
+                <span>Signal Bias</span>
+                <strong>{signalLabel}</strong>
+              </div>
+              <span className="f-pill history">Past Trend</span>
+              <span className="f-pill current">Current Price</span>
+              <span className={`f-pill forecast forecast-${signalTone}`}>Predicted Path</span>
+            </div>
+
+            <div className={`f-chart-wrapper tone-${signalTone}`}>
+              {loading ? (
+                <div className="f-loader">Loading prediction graph...</div>
+              ) : predictionError && !viewData ? (
+                <div className="f-error">
+                  <strong>Prediction Unavailable</strong>
+                  <span>{predictionError}</span>
+                </div>
+              ) : (
+                <Chart
+                  key={`${selectedCompany?.symbol}-${historyWindow}`}
+                  options={chartOptions}
+                  series={series}
+                  type="line"
+                  height={370}
+                  width="100%"
+                />
+              )}
+            </div>
+
+            <div className="f-chart-foot">
+              <span>
+                <strong>{viewData?.symbol || selectedCompany?.symbol || "---"}</strong>
+              </span>
+              <span>{formatDate(viewData?.history[0]?.x)}</span>
+              <span>to</span>
+              <span>{formatDate(viewData?.forecast[viewData?.forecast.length ? viewData.forecast.length - 1 : 0]?.x)}</span>
+            </div>
+          </section>
+
+          <aside className="f-sidebar-stack">
+            <section className={`f-card f-outlook-card tone-${signalTone}`}>
+              <p className="f-section-kicker">5-Day Outlook</p>
+
+              <div className={`f-change-value ${changeClass}`}>
+                {formatPercent(viewData?.changePct)}
+              </div>
+
+              <div className="f-metric-block">
+                <div className="f-metric-label">Model Confidence</div>
+                <div className="f-metric-value">
+                  {typeof confidencePct === "number" ? `${confidencePct.toFixed(1)}%` : "--"}
+                  <span>{viewData?.confidenceLabel || "UNSPECIFIED"}</span>
+                </div>
+                <div className="f-confidence-track">
+                  <div
+                    className="f-confidence-fill"
+                    style={{ width: `${confidenceWidth}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="f-targets">
+                <div className="f-target-row">
+                  <span>Current</span>
+                  <strong>{formatCurrency(viewData?.currentPrice)}</strong>
+                </div>
+                <div className="f-target-row">
+                  <span>Day 5</span>
+                  <strong>{formatCurrency(viewData?.day5Price)}</strong>
+                </div>
+                <div className="f-target-row">
+                  <span>Range</span>
+                  <strong>
+                    {formatCurrency(viewData?.rangeLow)} - {formatCurrency(viewData?.rangeHigh)}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="f-model-meta">
+                <span>Prediction date: {formatDate(viewData?.predictionDate)}</span>
+                <span>Model updated: {formatDate(viewData?.generatedAt)}</span>
+                <span>
+                  {predictionError && viewData
+                    ? predictionError
+                    : viewData?.fromCache
+                      ? "Loaded from cache"
+                      : "Fresh prediction"}
+                </span>
+              </div>
+            </section>
+
+            <section className="f-card">
+              <label className="f-field-label">Recently Viewed</label>
+              <div className="f-history-list">
+                {recent.map((item) => (
+                  <button
+                    key={item.symbol}
+                    type="button"
+                    className={`f-history-item ${item.symbol === selectedCompany?.symbol ? "active" : ""}`}
+                    onClick={() => setSelectedSymbol(item.symbol)}
+                  >
+                    <span className="dot" />
+                    <span>{item.symbol}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
           </aside>
         </div>
+
+        <section className="f-card f-table-card">
+          <div className="f-table-title">Detailed Forecast</div>
+          <div className="f-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Day</th>
+                  <th>Date</th>
+                  <th>Forecast</th>
+                  <th>Change</th>
+                </tr>
+              </thead>
+              <tbody>
+                {viewData?.rows.length ? (
+                  viewData.rows.map((row) => (
+                    <tr key={`${row.day}-${row.date}`}>
+                      <td>Day {row.day}</td>
+                      <td>{formatDate(row.date)}</td>
+                      <td>{formatCurrency(row.close)}</td>
+                      <td className={resolveRowClass(row.changePct)}>
+                        {formatPercent(row.changePct)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="f-empty-cell">No forecast rows available.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </main>
     </div>
   );
