@@ -228,14 +228,9 @@ const parseModelConfidence = (signal: Signal | null): number | undefined => {
     const normalized = signal.model_score <= 1 ? signal.model_score * 100 : signal.model_score;
     return clamp(normalized, 0, 100);
   }
-
-  const probUp = typeof signal.prob_up === "number" ? signal.prob_up : null;
-  const probDown = typeof signal.prob_down === "number" ? signal.prob_down : null;
-
-  if (probUp === null && probDown === null) return undefined;
-
-  const strongerSide = Math.max(probUp ?? 0, probDown ?? 0);
-  return clamp(strongerSide * 100, 0, 100);
+  // If the backend does not supply a model_score, leave confidence undefined
+  // instead of inferring from class probabilities. The UI will render "--".
+  return undefined;
 };
 
 const parsePredictionResponse = (

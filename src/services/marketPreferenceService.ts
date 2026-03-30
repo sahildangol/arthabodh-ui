@@ -6,6 +6,7 @@ const WATCHLIST_ENDPOINT = `${API_BASE_URL}/user-preference/watchlist`;
 const MOMENTUM_PREDICT_ENDPOINT = `${API_BASE_URL}/inference/predict`;
 const ADVANCED_PREDICT_ENDPOINT = `${API_BASE_URL}/inference/predict/advanced`;
 const LIVE_OVERVIEW_ENDPOINT = `${API_BASE_URL}/market-data/live-overview`;
+const LIVE_FULL_ENDPOINT = `${API_BASE_URL}/market-data/live-full`;
 const COMPANY_PAGE_SIZE = 500;
 const COMPANY_MAX_PAGES = 40;
 
@@ -599,6 +600,24 @@ export const MarketPreferenceService = {
         response,
         LIVE_OVERVIEW_ENDPOINT,
         `Live overview failed with ${response.status}`,
+      );
+    }
+
+    return response.json();
+  },
+
+  async getLiveFull(): Promise<unknown> {
+    const response = await fetch(LIVE_FULL_ENDPOINT, {
+      headers: {
+        accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw await toApiError(
+        response,
+        LIVE_FULL_ENDPOINT,
+        `Live full market failed with ${response.status}`,
       );
     }
 
