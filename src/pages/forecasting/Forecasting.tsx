@@ -10,7 +10,7 @@ import {
 } from "../../services/marketPreferenceService";
 import "./Forecasting.css";
 
-const HISTORY_WINDOWS = [10, 30] as const;
+const HISTORY_WINDOW = 10;
 
 type LinePoint = {
   x: string;
@@ -36,6 +36,8 @@ type PastDayPoint = {
 };
 
 type Signal = {
+  date?: string;
+  close?: number | string | null;
   confidence?: string;
   model_score?: number | null;
   prob_up?: number | null;
@@ -177,6 +179,48 @@ const parseForecastRows = (
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 };
 
+const parseForecastLine = (
+  points: ForecastPoint[] | null | undefined,
+): LinePoint[] => {
+  if (!Array.isArray(points)) return [];
+
+  return points
+    .map((point) => {
+      const x = toIsoDate(point.forecast_date);
+      const y = toNumber(point.predicted_close);
+      if (!x || y === null) return null;
+
+      return { x, y };
+    })
+    .filter(isPresent)
+    .sort(byDateAsc);
+};
+
+const parseCurrentPoint = (signal: Signal | null): LinePoint | null => {
+  if (!signal) return null;
+
+  const x = toIsoDate(signal.date);
+  const y = toNumber(signal.close);
+
+  if (!x || y === null) return null;
+
+  return { x, y };
+};
+
+const mergeCurrentIntoHistory = (
+  history: LinePoint[],
+  current: LinePoint | null,
+  historyWindow: number,
+): LinePoint[] => {
+  if (!current) {
+    return history.slice(-historyWindow);
+  }
+
+  return [...history.filter((point) => point.x !== current.x), current]
+    .sort(byDateAsc)
+    .slice(-historyWindow);
+};
+
 const parseModelConfidence = (signal: Signal | null): number | undefined => {
   if (!signal) return undefined;
 
@@ -205,16 +249,21 @@ const parsePredictionResponse = (
   const signal = payload.selected_signal ?? payload.all_signals?.[0] ?? null;
 
   let history = parseTimelinePoints(signal?.timeline_10d, "history");
-  const forecastOnly = parseTimelinePoints(signal?.timeline_10d, "forecast");
+  const currentFromSignal = parseCurrentPoint(signal);
+  const timelineForecast = parseTimelinePoints(signal?.timeline_10d, "forecast");
+  const forecastFromResponse = parseForecastLine(signal?.forecast_next_5d);
 
   if (!history.length) {
     history = parsePastSeries(payload.past_5_days);
   }
 
-  history = history.slice(-historyWindow);
+  history = mergeCurrentIntoHistory(history, currentFromSignal, historyWindow);
 
-  const current = history[history.length - 1] ?? null;
-  const forecast = current ? [current, ...forecastOnly] : [...forecastOnly];
+  const current = currentFromSignal ?? history[history.length - 1] ?? null;
+  const forecastOnly = forecastFromResponse.length ? forecastFromResponse : timelineForecast;
+  const forecast = current
+    ? [current, ...forecastOnly.filter((point) => point.x !== current.x)]
+    : [...forecastOnly];
 
   const rows = parseForecastRows(signal?.forecast_next_5d);
   const fallbackRows = !rows.length
@@ -248,7 +297,7 @@ const parsePredictionResponse = (
   const rangeLow = closesForRange.length ? Math.min(...closesForRange) : undefined;
   const rangeHigh = closesForRange.length ? Math.max(...closesForRange) : undefined;
 
-  if (!history.length && !forecastOnly.length) {
+  if (!history.length && !current && !forecastOnly.length) {
     return null;
   }
 
@@ -394,7 +443,6 @@ const Forecasting = () => {
   const [selectedSymbol, setSelectedSymbol] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [recent, setRecent] = useState<Company[]>([]);
-  const [historyWindow, setHistoryWindow] = useState<number>(10);
   const [loading, setLoading] = useState(false);
   const [isMock, setIsMock] = useState(false);
   const [viewData, setViewData] = useState<ForecastViewData | null>(null);
@@ -423,7 +471,7 @@ const Forecasting = () => {
         const payload = await MarketPreferenceService.getAdvancedPrediction(
           selectedCompany.symbol,
         );
-        const parsed = parsePredictionResponse(payload, selectedCompany.symbol, historyWindow);
+        const parsed = parsePredictionResponse(payload, selectedCompany.symbol, HISTORY_WINDOW);
 
         if (!parsed) {
           setViewData(null);
@@ -452,7 +500,7 @@ const Forecasting = () => {
         console.warn("Falling back to simulated forecast:", error);
         usedMock = true;
         setPredictionError("Live prediction failed. Showing simulated forecast.");
-        setViewData(buildMockViewData(selectedCompany.symbol, historyWindow));
+        setViewData(buildMockViewData(selectedCompany.symbol, HISTORY_WINDOW));
       }
 
       setIsMock(usedMock);
@@ -468,7 +516,7 @@ const Forecasting = () => {
     return () => {
       controller.abort();
     };
-  }, [selectedCompany, historyWindow]);
+  }, [selectedCompany]);
 
   const series = (() => {
     if (!viewData) return [] as ChartSeries[];
@@ -479,6 +527,10 @@ const Forecasting = () => {
       output.push({ name: "Past Trend", type: "line", data: viewData.history });
     }
 
+    if (viewData.current) {
+      output.push({ name: "Current Price", type: "scatter", data: [viewData.current] });
+    }
+
     if (viewData.forecast.length > 1) {
       output.push({ name: "Predicted Path", type: "line", data: viewData.forecast });
     }
@@ -487,14 +539,9 @@ const Forecasting = () => {
   })();
 
   const chartOptions = useMemo((): ApexOptions => {
-    const tone = resolveSignalTone(viewData?.changePct);
-    const historyColor = "#334155";
-    const forecastColor =
-      tone === "buy"
-        ? "#10b981"
-        : tone === "sell"
-          ? "#ef4444"
-          : "#f59e0b";
+    const historyColor = "#000000";
+    const currentColor = "#2563eb";
+    const forecastColor = "#ff0000";
 
     return {
       chart: {
@@ -511,57 +558,83 @@ const Forecasting = () => {
           enabled: false,
         },
       },
-      colors: [historyColor, forecastColor],
+      colors: [historyColor, currentColor, forecastColor],
       stroke: {
-        width: [3, 3.5],
+        width: [3.5, 0, 4],
         curve: "smooth",
-        dashArray: [0, 6],
+        lineCap: "butt",
+        dashArray: [0, 0, 6],
       },
       fill: {
-        type: ["solid", "solid"],
-        opacity: [0.1, 0.12],
+        type: ["solid", "solid", "solid"],
+        opacity: [1, 1, 1],
       },
       markers: {
-        size: [5, 5],
-        colors: [historyColor, forecastColor],
-        strokeColors: "#ffffff",
-        strokeWidth: [2, 2],
-        hover: { sizeOffset: 3 },
+        size: [5.1, 8.5, 5.1],
+        colors: [historyColor, currentColor, forecastColor],
+        strokeColors: [historyColor, currentColor, forecastColor],
+        strokeWidth: [0, 0, 0],
+        hover: { sizeOffset: 4.25 },
       },
       xaxis: {
         type: "datetime",
+        tickAmount: 6,
         labels: {
           style: {
-            colors: "#64748b",
+            colors: "#0f172a",
             fontSize: "11px",
-            fontWeight: 600,
+            fontWeight: 700,
           },
           formatter(value) {
             return formatAxisDate(value);
           },
         },
         axisBorder: {
-          color: "#dbe3ef",
+          show: true,
+          color: "#0f172a",
+          height: 2,
         },
         axisTicks: {
-          color: "#dbe3ef",
+          show: true,
+          color: "#0f172a",
+          height: 8,
+        },
+        crosshairs: {
+          show: true,
+          position: "back",
+          stroke: {
+            color: "#475569",
+            width: 1,
+            dashArray: 0,
+          },
         },
       },
       yaxis: {
+        tickAmount: 6,
         labels: {
           style: {
-            colors: "#64748b",
+            colors: "#0f172a",
             fontSize: "11px",
-            fontWeight: 600,
+            fontWeight: 700,
           },
           formatter(value) {
-            return value.toFixed(0);
+            return `NPR ${value.toFixed(0)}`;
           },
         },
       },
       grid: {
-        borderColor: "#e4eaf3",
-        strokeDashArray: 4,
+        borderColor: "#94a3b8",
+        strokeDashArray: 2,
+        xaxis: {
+          lines: {
+            show: true,
+          },
+        },
+        yaxis: {
+          lines: {
+            show: true,
+          },
+        },
         padding: {
           left: 12,
           right: 12,
@@ -576,9 +649,15 @@ const Forecasting = () => {
         labels: { colors: "#334155" },
       },
       tooltip: {
-        shared: true,
+        shared: false,
         intersect: false,
-        followCursor: true,
+        followCursor: false,
+        fixed: {
+          enabled: false,
+        },
+        marker: {
+          show: true,
+        },
         x: {
           format: "dd MMM yyyy",
         },
@@ -673,21 +752,8 @@ const Forecasting = () => {
               <div>
                 <p className="f-section-kicker">Trajectory & Signal Split</p>
                 <p className="f-section-subtext">
-                  Past prices, current spot, and upcoming predicted path.
+                  Past 10 trading days, current spot, and upcoming predicted path.
                 </p>
-              </div>
-
-              <div className="f-segment">
-                {HISTORY_WINDOWS.map((days) => (
-                  <button
-                    key={days}
-                    type="button"
-                    className={`f-tab ${historyWindow === days ? "active" : ""}`}
-                    onClick={() => setHistoryWindow(days)}
-                  >
-                    {days}D
-                  </button>
-                ))}
               </div>
             </div>
 
@@ -711,7 +777,7 @@ const Forecasting = () => {
                 </div>
               ) : (
                 <Chart
-                  key={`${selectedCompany?.symbol}-${historyWindow}`}
+                  key={`${selectedCompany?.symbol}-${HISTORY_WINDOW}`}
                   options={chartOptions}
                   series={series}
                   type="line"

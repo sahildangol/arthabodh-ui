@@ -179,10 +179,14 @@
 
 .f-card-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: flex-start;
   gap: 16px;
   margin-bottom: 14px;
+}
+
+.f-card-header > div:first-child {
+  width: 100%;
 }
 
 .f-section-kicker {
