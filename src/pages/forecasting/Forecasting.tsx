@@ -479,12 +479,8 @@ const Forecasting = () => {
       output.push({ name: "Past Trend", type: "line", data: viewData.history });
     }
 
-    if (viewData.current) {
-      output.push({ name: "Current Price", type: "scatter", data: [viewData.current] });
-    }
-
     if (viewData.forecast.length > 1) {
-      output.push({ name: "Predicted Path", type: "area", data: viewData.forecast });
+      output.push({ name: "Predicted Path", type: "line", data: viewData.forecast });
     }
 
     return output;
@@ -493,63 +489,12 @@ const Forecasting = () => {
   const chartOptions = useMemo((): ApexOptions => {
     const tone = resolveSignalTone(viewData?.changePct);
     const historyColor = "#334155";
-    const currentColor = "#1d4ed8";
     const forecastColor =
       tone === "buy"
         ? "#10b981"
         : tone === "sell"
           ? "#ef4444"
           : "#f59e0b";
-    const toneBorder =
-      tone === "buy"
-        ? "#059669"
-        : tone === "sell"
-          ? "#dc2626"
-          : "#d97706";
-    const toneFill =
-      tone === "buy"
-        ? "rgba(16, 185, 129, 0.18)"
-        : tone === "sell"
-          ? "rgba(239, 68, 68, 0.16)"
-        : "rgba(245, 158, 11, 0.18)";
-
-    const forecastStart = viewData?.forecast[1]?.x;
-    const forecastEnd = viewData?.forecast[viewData.forecast.length - 1]?.x;
-
-    const x1 = forecastStart ? new Date(forecastStart).getTime() : null;
-    const x2 = forecastEnd ? new Date(forecastEnd).getTime() : null;
-
-    const annotations =
-      typeof x1 === "number"
-      && Number.isFinite(x1)
-      && typeof x2 === "number"
-      && Number.isFinite(x2)
-      && x2 > x1
-        ? {
-          xaxis: [
-            {
-              x: x1,
-              x2,
-              fillColor: toneFill,
-              label: {
-                borderColor: toneBorder,
-                style: {
-                  color: toneBorder,
-                  background:
-                    tone === "buy"
-                      ? "#d1fae5"
-                      : tone === "sell"
-                        ? "#fee2e2"
-                        : "#fef3c7",
-                  fontSize: "10px",
-                  fontWeight: "700",
-                },
-                text: "Forecast Window",
-              },
-            },
-          ],
-        }
-        : undefined;
 
     return {
       chart: {
@@ -563,40 +508,25 @@ const Forecasting = () => {
           speed: 380,
         },
         dropShadow: {
-          enabled: true,
-          top: 4,
-          left: 0,
-          blur: 10,
-          color: forecastColor,
-          opacity: 0.22,
+          enabled: false,
         },
       },
-      colors: [historyColor, currentColor, forecastColor],
+      colors: [historyColor, forecastColor],
       stroke: {
-        width: [3, 0, 4],
+        width: [3, 3.5],
         curve: "smooth",
-        dashArray: [0, 0, 7],
+        dashArray: [0, 6],
       },
       fill: {
-        type: ["solid", "solid", "gradient"],
-        opacity: [1, 1, 0.26],
-        gradient: {
-          shade: "light",
-          type: "vertical",
-          shadeIntensity: 0.35,
-          opacityFrom: 0.32,
-          opacityTo: 0.03,
-          stops: [0, 86, 100],
-        },
+        type: ["solid", "solid"],
+        opacity: [0.1, 0.12],
       },
       markers: {
-        size: [0, 10, 5],
-        colors: [historyColor, currentColor, forecastColor],
+        size: [5, 5],
+        colors: [historyColor, forecastColor],
         strokeColors: "#ffffff",
-        strokeWidth: [0, 4, 2],
-        hover: {
-          sizeOffset: 2,
-        },
+        strokeWidth: [2, 2],
+        hover: { sizeOffset: 3 },
       },
       xaxis: {
         type: "datetime",
@@ -639,18 +569,16 @@ const Forecasting = () => {
           bottom: 6,
         },
       },
-      annotations,
       legend: {
         show: true,
         position: "bottom",
         horizontalAlign: "center",
-        labels: {
-          colors: "#334155",
-        },
+        labels: { colors: "#334155" },
       },
       tooltip: {
         shared: true,
         intersect: false,
+        followCursor: true,
         x: {
           format: "dd MMM yyyy",
         },

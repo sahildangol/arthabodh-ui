@@ -470,11 +470,6 @@ const Dashboard = () => {
           <span>Avg. Daily Volume</span>
           <strong>{formatCompactVolume(dashboardView.avgDailyVolume)}</strong>
         </div>
-
-        <div className="d2-kpi-card">
-          <span>Market Sentiment</span>
-          <strong className={dashboardView.sentimentTone}>{dashboardView.sentiment}</strong>
-        </div>
       </section>
 
       <section className="d2-columns">

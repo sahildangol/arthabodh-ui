@@ -411,7 +411,6 @@ const Momentum = () => {
             <>
               <MomentumGauge
                 value={gaugeValue}
-                strength={`${signalView?.score && signalView.score > 0 ? "+" : ""}${signalView?.score ?? 0}`}
                 direction={gaugeDirection}
               />
 
@@ -423,13 +422,6 @@ const Momentum = () => {
                 <p>Momentum Score</p>
                 <div className={`m2-badge ${tone}`}>
                   {signalView?.label || "Neutral"}
-                </div>
-                <div className="m2-prediction-line">
-                  Predicting{" "}
-                  <strong>
-                    {signalView?.label?.toUpperCase() || "NEUTRAL"}
-                  </strong>{" "}
-                  momentum
                 </div>
               </div>
             </>
