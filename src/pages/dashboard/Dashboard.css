@@ -158,6 +158,10 @@
   color: #0f9d71;
 }
 
+.d2-market-status.closed {
+  color: #dc2626;
+}
+
 .d2-market-status.offline {
   color: #b45309;
 }

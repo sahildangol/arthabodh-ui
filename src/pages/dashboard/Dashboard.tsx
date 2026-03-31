@@ -202,6 +202,13 @@ const parseMarketStatus = (
   };
 };
 
+const resolveMarketStatusClass = (statusText?: string) => {
+  const normalized = statusText?.trim().toUpperCase();
+  if (normalized === "OPEN") return "live";
+  if (normalized === "CLOSE" || normalized === "CLOSED") return "closed";
+  return "offline";
+};
+
 export default function Dashboard() {
   const [dashboardView, setDashboardView] = useState<DashboardView | null>(null);
   const [ribbonQuotes, setRibbonQuotes] = useState<RibbonQuote[]>([]);
@@ -380,7 +387,9 @@ export default function Dashboard() {
 
         <div className="d2-kpi-card">
           <h3>NEPSE Status</h3>
-          <div className={`d2-market-status ${dashboardView.isLive ? "live" : "offline"}`}>
+          <div
+            className={`d2-market-status ${resolveMarketStatusClass(dashboardView.marketStatusText)}`}
+          >
             {dashboardView.marketStatusText}
           </div>
           <p className="d2-kpi-note">As of {formatDateTime(dashboardView.marketStatusAsOf)}</p>
