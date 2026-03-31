@@ -7,6 +7,8 @@ const MOMENTUM_PREDICT_ENDPOINT = `${API_BASE_URL}/inference/predict`;
 const ADVANCED_PREDICT_ENDPOINT = `${API_BASE_URL}/inference/predict/advanced`;
 const LIVE_OVERVIEW_ENDPOINT = `${API_BASE_URL}/market-data/live-overview`;
 const LIVE_FULL_ENDPOINT = `${API_BASE_URL}/market-data/live-full`;
+const MARKET_SUMMARY_ENDPOINT = `${API_BASE_URL}/market-data/summary`;
+const IS_NEPSE_OPEN_ENDPOINT = `${API_BASE_URL}/market-data/is-nepse-open`;
 const COMPANY_PAGE_SIZE = 500;
 const COMPANY_MAX_PAGES = 40;
 
@@ -605,7 +607,6 @@ export const MarketPreferenceService = {
 
     return response.json();
   },
-
   async getLiveFull(): Promise<unknown> {
     const response = await fetch(LIVE_FULL_ENDPOINT, {
       headers: {
@@ -618,6 +619,42 @@ export const MarketPreferenceService = {
         response,
         LIVE_FULL_ENDPOINT,
         `Live full market failed with ${response.status}`,
+      );
+    }
+
+    return response.json();
+  },
+
+  async getMarketSummary(): Promise<unknown> {
+    const response = await fetch(MARKET_SUMMARY_ENDPOINT, {
+      headers: {
+        accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw await toApiError(
+        response,
+        MARKET_SUMMARY_ENDPOINT,
+        `Market summary failed with ${response.status}`,
+      );
+    }
+
+    return response.json();
+  },
+
+  async getIsNepseOpen(): Promise<unknown> {
+    const response = await fetch(IS_NEPSE_OPEN_ENDPOINT, {
+      headers: {
+        accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw await toApiError(
+        response,
+        IS_NEPSE_OPEN_ENDPOINT,
+        `NEPSE open status failed with ${response.status}`,
       );
     }
 

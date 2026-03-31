@@ -4,7 +4,8 @@ import { MdInfoOutline } from "react-icons/md";
 import { MarketPreferenceService } from "../../services/marketPreferenceService";
 import "./Dashboard.css";
 
-const LIVE_WINDOW_NOTICE = "Live feed updates 11:00–15:00 NPT on trading days.";
+const LIVE_WINDOW_NOTICE = "Live feed updates 11:00-15:00 NPT on trading days.";
+const DEFAULT_VISIBLE_MOVERS = 5;
 
 type LiveIndexEntry = {
   name: string;
@@ -24,6 +25,11 @@ type LiveMover = {
   securityName?: string;
 };
 
+type MarketSummaryItem = {
+  label: string;
+  value: string;
+};
+
 type DashboardView = {
   indices: LiveIndexEntry[];
   topGainers: LiveMover[];
@@ -32,6 +38,9 @@ type DashboardView = {
   isLive: boolean;
   gainersCount: number;
   losersCount: number;
+  marketStatusText: string;
+  marketStatusAsOf?: string;
+  marketSummaryItems: MarketSummaryItem[];
 };
 
 type RibbonQuote = LiveMover;
@@ -70,6 +79,28 @@ const formatPrice = (value: number | null | undefined) => {
   return value.toFixed(2);
 };
 
+const formatCurrency = (value: number) =>
+  `NPR ${value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+const formatSummaryValue = (label: string, value: unknown) => {
+  const numeric = toNumber(value);
+  if (numeric !== null) {
+    if (label.toLowerCase().includes("turnover")) {
+      return formatCurrency(numeric);
+    }
+
+    return numeric.toLocaleString("en-US", {
+      maximumFractionDigits: 0,
+    });
+  }
+
+  if (typeof value === "string") return value;
+  return "--";
+};
+
 const parseIndices = (raw: unknown): LiveIndexEntry[] => {
   if (!raw || typeof raw !== "object") return [];
   const payload = raw as Record<string, unknown>;
@@ -104,15 +135,71 @@ const parseMovers = (raw: unknown): LiveMover[] => {
       const symbol = typeof row.symbol === "string" ? row.symbol.trim().toUpperCase() : null;
       if (!symbol) return null;
 
+      const ltp =
+        toNumber(row.ltp)
+        ?? toNumber(row.cp)
+        ?? toNumber(row.lastTradedPrice)
+        ?? toNumber(row.close);
+      const previousClose = toNumber(row.previousClose);
+      const pointChange =
+        toNumber(row.pointChange)
+        ?? (ltp !== null && previousClose !== null ? ltp - previousClose : null);
+
       return {
         symbol,
-        ltp: toNumber(row.ltp) ?? toNumber(row.cp),
-        pointChange: toNumber(row.pointChange),
+        ltp,
+        pointChange,
         percentageChange: toNumber(row.percentageChange),
         securityName: typeof row.securityName === "string" ? row.securityName : undefined,
       };
     })
     .filter(Boolean) as LiveMover[];
+};
+
+const parseMarketSummary = (raw: unknown): MarketSummaryItem[] => {
+  if (typeof raw === "string") {
+    return [{ label: "Market Summary", value: raw }];
+  }
+
+  if (!raw || typeof raw !== "object") return [];
+
+  return Object.entries(raw as Record<string, unknown>).map(([label, value]) => ({
+    label: label.replace(/:$/, ""),
+    value: formatSummaryValue(label, value),
+  }));
+};
+
+const parseMarketStatus = (
+  raw: unknown,
+): { text: string; isLive: boolean; asOf?: string } => {
+  if (typeof raw === "string") {
+    const normalized = raw.trim().toUpperCase();
+    return {
+      text: normalized || "UNKNOWN",
+      isLive: normalized === "OPEN",
+    };
+  }
+
+  if (!raw || typeof raw !== "object") {
+    return {
+      text: "UNKNOWN",
+      isLive: false,
+    };
+  }
+
+  const row = raw as Record<string, unknown>;
+  const status =
+    typeof row.isOpen === "string"
+      ? row.isOpen
+      : typeof row.status === "string"
+        ? row.status
+        : "UNKNOWN";
+
+  return {
+    text: status.toUpperCase(),
+    isLive: status.toUpperCase() === "OPEN",
+    asOf: typeof row.asOf === "string" ? row.asOf : undefined,
+  };
 };
 
 export default function Dashboard() {
@@ -128,51 +215,59 @@ export default function Dashboard() {
     const loadOverview = async () => {
       setLoading(true);
       try {
-        const [payload, liveFull] = await Promise.all([
+        const [payload, liveFull, marketSummary, marketStatus] = await Promise.all([
           MarketPreferenceService.getLiveOverview(),
           MarketPreferenceService.getLiveFull().catch(() => []),
+          MarketPreferenceService.getMarketSummary().catch(() => null),
+          MarketPreferenceService.getIsNepseOpen().catch(() => null),
         ]);
 
+        const parsedStatus = parseMarketStatus(marketStatus);
+        const marketSummaryItems = parseMarketSummary(marketSummary);
         const isOverviewEmpty = Array.isArray(payload) && payload.length === 0;
 
-        // When overview is empty, build gainers/losers from live-full and mark as closed.
         let indices: LiveIndexEntry[] = [];
         let allGainers: LiveMover[] = [];
         let allLosers: LiveMover[] = [];
-        let isLive = false;
+        let isLive = parsedStatus.isLive;
 
         if (isOverviewEmpty) {
           const fullQuotes = parseMovers(liveFull);
           const sortedByPct = fullQuotes
-            .filter((q) => typeof q.percentageChange === "number")
-            .sort((a, b) => (b.percentageChange ?? 0) - (a.percentageChange ?? 0));
-          allGainers = sortedByPct.filter((q) => (q.percentageChange ?? 0) >= 0);
-          allLosers = sortedByPct.slice().reverse().filter((q) => (q.percentageChange ?? 0) < 0);
+            .filter((quote) => typeof quote.percentageChange === "number")
+            .sort((left, right) => (right.percentageChange ?? 0) - (left.percentageChange ?? 0));
+          allGainers = sortedByPct.filter((quote) => (quote.percentageChange ?? 0) >= 0);
+          allLosers = sortedByPct.slice().reverse().filter((quote) => (quote.percentageChange ?? 0) < 0);
         } else {
-          const resolvedPayload = payload;
+          const resolvedPayload = payload as Record<string, unknown>;
           indices = parseIndices(resolvedPayload);
-          allGainers = parseMovers((resolvedPayload as Record<string, unknown>).TopGainers);
-          allLosers = parseMovers((resolvedPayload as Record<string, unknown>).TopLosers);
+          allGainers = parseMovers(resolvedPayload.TopGainers);
+          allLosers = parseMovers(resolvedPayload.TopLosers);
 
-          const nepse = indices.find((idx) => idx.name === "NEPSE Index");
-          isLive = typeof nepse?.perChange === "number" ? nepse.perChange !== 0 : Boolean(allGainers.length);
+          if (!isLive) {
+            const nepse = indices.find((idx) => idx.name === "NEPSE Index");
+            isLive = typeof nepse?.perChange === "number"
+              ? nepse.perChange !== 0
+              : Boolean(allGainers.length);
+          }
         }
-
-        const topGainers = allGainers.slice(0, 10);
-        const topLosers = allLosers.slice(0, 10);
 
         if (!cancelled) {
           setDashboardView({
             indices,
-            topGainers,
-            topLosers,
+            topGainers: allGainers,
+            topLosers: allLosers,
             generatedAt: new Date().toISOString(),
             isLive,
             gainersCount: allGainers.length,
             losersCount: allLosers.length,
+            marketStatusText: parsedStatus.text,
+            marketStatusAsOf: parsedStatus.asOf,
+            marketSummaryItems,
           });
+
           const ribbon = parseMovers(liveFull);
-          setRibbonQuotes(ribbon.length ? ribbon : [...topGainers, ...topLosers].slice(0, 30));
+          setRibbonQuotes(ribbon.length ? ribbon : [...allGainers, ...allLosers].slice(0, 30));
         }
       } catch (error) {
         console.warn("Unable to load live overview:", error);
@@ -233,17 +328,11 @@ export default function Dashboard() {
   return (
     <div className="d2-page">
       <header className="d2-header">
-        <div className="d2-header-left with-meta">
+        <div className="d2-header-left">
           <div>
             <h1>NEPSE Overview</h1>
-          </div>
-          <div className="d2-meta inline prominent">
-            <span className={`tag ${dashboardView.isLive ? "live" : "offline"}`}>
-              {dashboardView.isLive ? "Live" : "Closed"}
-            </span>
-            <span className="tag tag-strong">Updated: {formatDateTime(dashboardView.generatedAt)}</span>
             {!dashboardView.isLive && (
-              <span className="tag muted">{LIVE_WINDOW_NOTICE}</span>
+              <p className="d2-header-note">{LIVE_WINDOW_NOTICE}</p>
             )}
           </div>
         </div>
@@ -256,7 +345,7 @@ export default function Dashboard() {
               <div key={`${item.symbol}-${idx}`} className="d2-ribbon-item">
                 <span className="sym">{item.symbol}</span>
                 <span className="ltp">{formatPrice(item.ltp)}</span>
-                <span className={`chg ${((item.percentageChange ?? 0) >= 0) ? "pos" : "neg"}`}>
+                <span className={`chg ${(item.percentageChange ?? 0) >= 0 ? "pos" : "neg"}`}>
                   {formatSignedPercent(item.percentageChange ?? item.pointChange ?? 0)}
                 </span>
               </div>
@@ -288,13 +377,39 @@ export default function Dashboard() {
             {breadth.gainers}:{breadth.losers}
           </strong>
         </div>
+
+        <div className="d2-kpi-card">
+          <h3>NEPSE Status</h3>
+          <div className={`d2-market-status ${dashboardView.isLive ? "live" : "offline"}`}>
+            {dashboardView.marketStatusText}
+          </div>
+          <p className="d2-kpi-note">As of {formatDateTime(dashboardView.marketStatusAsOf)}</p>
+        </div>
+      </section>
+
+      <section className="d2-market-grid">
+        <article className="d2-market-card">
+          <h3>Market Summary</h3>
+          {dashboardView.marketSummaryItems.length ? (
+            <div className="d2-market-summary">
+              {dashboardView.marketSummaryItems.map((item) => (
+                <div key={item.label} className="d2-market-row">
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="d2-market-empty">Market summary is unavailable right now.</p>
+          )}
+        </article>
       </section>
 
       <section className="d2-columns">
         <article className="d2-list-card">
           <div className="d2-card-head inline">
             <h3>Top Gainers</h3>
-            {dashboardView.topGainers.length > 6 && (
+            {dashboardView.topGainers.length > DEFAULT_VISIBLE_MOVERS && (
               <button
                 type="button"
                 className="d2-expand"
@@ -306,7 +421,9 @@ export default function Dashboard() {
           </div>
           {dashboardView.topGainers.length ? (
             <div className="d2-list">
-              {(showAllGainers ? dashboardView.topGainers : dashboardView.topGainers.slice(0, 6)).map((item) => (
+              {(showAllGainers
+                ? dashboardView.topGainers
+                : dashboardView.topGainers.slice(0, DEFAULT_VISIBLE_MOVERS)).map((item) => (
                 <div key={item.symbol} className="d2-list-item">
                   <div>
                     <div className="d2-symbol">{item.symbol}</div>
@@ -329,7 +446,7 @@ export default function Dashboard() {
         <article className="d2-list-card">
           <div className="d2-card-head inline">
             <h3>Top Losers</h3>
-            {dashboardView.topLosers.length > 6 && (
+            {dashboardView.topLosers.length > DEFAULT_VISIBLE_MOVERS && (
               <button
                 type="button"
                 className="d2-expand"
@@ -341,7 +458,9 @@ export default function Dashboard() {
           </div>
           {dashboardView.topLosers.length ? (
             <div className="d2-list">
-              {(showAllLosers ? dashboardView.topLosers : dashboardView.topLosers.slice(0, 6)).map((item) => (
+              {(showAllLosers
+                ? dashboardView.topLosers
+                : dashboardView.topLosers.slice(0, DEFAULT_VISIBLE_MOVERS)).map((item) => (
                 <div key={item.symbol} className="d2-list-item">
                   <div>
                     <div className="d2-symbol">{item.symbol}</div>
