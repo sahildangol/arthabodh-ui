@@ -804,7 +804,6 @@ const Forecasting = () => {
                 <div className="f-metric-label">Model Confidence</div>
                 <div className="f-metric-value">
                   {typeof confidencePct === "number" ? `${confidencePct.toFixed(1)}%` : "--"}
-                  <span>{viewData?.confidenceLabel || "UNSPECIFIED"}</span>
                 </div>
                 <div className="f-confidence-track">
                   <div
