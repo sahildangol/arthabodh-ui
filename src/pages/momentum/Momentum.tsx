@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { IoIosArrowDropdown } from "react-icons/io";
 import { BiLoaderAlt } from "react-icons/bi";
-import MomentumGauge from "../../common/components/MomentumGauge";
 import { useCompanyWatchlist } from "../../common/hooks/useCompanyWatchlist";
 import { MarketPreferenceService } from "../../services/marketPreferenceService";
+import MomentumGauge from "../../common/components/MomentumGauge";
 import "./Momentum.css";
 
 type SignalPayload = {
@@ -25,6 +25,8 @@ type SignalPayload = {
     point_type?: string;
     volume?: number | string | null;
   }>;
+  car?: number | string | null;
+  npl?: number | string | null;
 };
 
 type MomentumResponse = {
@@ -33,8 +35,18 @@ type MomentumResponse = {
   generated_at?: string;
   timeframe?: string;
   from_cache?: boolean;
+  model_type?: string;
+  lookback_days?: number;
+  rows_ohlcv?: number;
+  rows_nepse?: number;
+  decision_threshold?: number | string;
   selected_signal?: SignalPayload | null;
   past_5_days?: Array<{
+    date?: string;
+    open?: number | string | null;
+    high?: number | string | null;
+    low?: number | string | null;
+    close?: number | string | null;
     volume?: number | string | null;
   }>;
 };
@@ -56,11 +68,32 @@ type MomentumView = {
   probabilityPct: number;
   modelConfidencePct: number;
   confidenceLabel: string;
+  confidenceTone: "low" | "medium" | "high";
+  strengthLabel?: string;
+  strengthTone: "weak" | "medium" | "strong";
+  modelScorePct?: number;
+  probUpPct?: number;
+  probDownPct?: number;
+  predictedMovePct?: number;
+  moveLabel?: string;
+  predictionDate?: string;
   price?: number;
   volume?: number;
   generatedAt?: string;
   timeframe?: string;
   fromCache: boolean;
+  pastFiveDays: MomentumResponse["past_5_days"];
+  fundamentals: {
+    car?: number | null;
+    npl?: number | null;
+    closePrice?: number | null;
+  };
+  technical: {
+    modelType?: string;
+    lookbackDays?: number | null;
+    rows?: number | null;
+    decisionThreshold?: number | null;
+  };
   features: FeatureEntry[];
 };
 
@@ -91,6 +124,25 @@ const formatDate = (value?: string) => {
   }).format(parsed);
 };
 
+const formatTime = (value?: string) => {
+  if (!value) return "--";
+  let parsed = new Date(value);
+
+  // Handle time-only strings like "03:06:37" by anchoring to today.
+  if (Number.isNaN(parsed.getTime()) && /^\d{2}:\d{2}(:\d{2})?$/.test(value)) {
+    const today = new Date();
+    const isoDate = today.toISOString().split("T")[0];
+    parsed = new Date(`${isoDate}T${value}`);
+  }
+
+  if (Number.isNaN(parsed.getTime())) return "--";
+  return new Intl.DateTimeFormat("en", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(parsed);
+};
+
 const formatCurrency = (value?: number) => {
   if (typeof value !== "number" || !Number.isFinite(value)) return "--";
   return `NPR ${value.toLocaleString("en-US", {
@@ -102,6 +154,17 @@ const formatCurrency = (value?: number) => {
 const formatVolume = (value?: number) => {
   if (typeof value !== "number" || !Number.isFinite(value)) return "--";
   return value.toLocaleString("en-US");
+};
+
+const formatPrice = (value?: number | null) => {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "--";
+  return value.toFixed(2);
+};
+
+const formatPercent = (value?: number, digits = 1) => {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "--";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(digits)}%`;
 };
 
 const deriveSignalLabel = (score: number) => {
@@ -141,6 +204,8 @@ const parseMomentumResponse = (
   const probUp = clamp(rawProbUp, 0, 1);
   const probDown = clamp(rawProbDown, 0, 1);
   const probabilityPct = clamp(Math.max(probUp, probDown) * 100, 0, 100);
+  const probUpPct = clamp(probUp * 100, 0, 100);
+  const probDownPct = clamp(probDown * 100, 0, 100);
 
   const score = Math.round(clamp((probUp - probDown) * 100, -100, 100));
   const inferredDirection =
@@ -211,6 +276,41 @@ const parseMomentumResponse = (
     ?? undefined;
 
   const label = deriveSignalLabel(score);
+  const modelScorePct =
+    typeof modelScoreValue === "number"
+      ? clamp(modelScoreValue <= 1 ? modelScoreValue * 100 : modelScoreValue, 0, 100)
+      : undefined;
+
+  const returnMagPct = (() => {
+    if (typeof signal.return_magnitude_pct === "string") {
+      const numeric = Number(signal.return_magnitude_pct.replace("%", ""));
+      if (Number.isFinite(numeric)) return numeric;
+    }
+    const alt = toNumber(signal.return_magnitude);
+    if (typeof alt === "number") return alt * 100;
+    return undefined;
+  })();
+
+  const strengthLabel = signal.signal_strength?.toUpperCase() || "UNSPECIFIED";
+  const confidenceLabel = signal.confidence?.toUpperCase() || "UNSPECIFIED";
+
+  const confidenceTone =
+    confidenceLabel.includes("LOW") ? "low"
+      : confidenceLabel.includes("HIGH") ? "high"
+        : "medium";
+
+  const strengthTone =
+    strengthLabel.includes("WEAK") ? "weak"
+      : strengthLabel.includes("STRONG") ? "strong"
+        : "medium";
+
+  const moveLabel = (() => {
+    if (typeof returnMagPct !== "number") return undefined;
+    const abs = Math.abs(returnMagPct);
+    if (abs < 0.5) return returnMagPct >= 0 ? "Minimal Gain" : "Minimal Loss";
+    if (abs < 2) return returnMagPct >= 0 ? "Modest Gain" : "Modest Loss";
+    return returnMagPct >= 0 ? "Gain" : "Loss";
+  })();
 
   return {
     symbol: payload.symbol || fallbackSymbol,
@@ -220,12 +320,33 @@ const parseMomentumResponse = (
     score,
     probabilityPct,
     modelConfidencePct,
-    confidenceLabel: signal.confidence?.toUpperCase() || "UNSPECIFIED",
+    confidenceLabel,
+    confidenceTone,
+    strengthLabel,
+    strengthTone,
+    modelScorePct,
+    probUpPct,
+    probDownPct,
+    predictedMovePct: returnMagPct,
+    moveLabel,
+    predictionDate: payload.prediction_date,
     price: toNumber(signal.close) ?? undefined,
     volume,
     generatedAt: payload.generated_at || payload.prediction_date,
     timeframe: payload.timeframe || "1W",
     fromCache: Boolean(payload.from_cache),
+    pastFiveDays: payload.past_5_days ?? [],
+    fundamentals: {
+      closePrice: toNumber(signal.close),
+      car: toNumber(signal.car),
+      npl: toNumber(signal.npl),
+    },
+    technical: {
+      modelType: payload.model_type,
+      lookbackDays: payload.lookback_days ?? null,
+      rows: payload.rows_ohlcv ?? payload.rows_nepse ?? null,
+      decisionThreshold: toNumber(payload.decision_threshold),
+    },
     features: [
       {
         label: "Price Momentum (14d)",
@@ -250,18 +371,30 @@ const buildMockMomentum = (symbol: string): MomentumView => ({
   probabilityPct: 83.5,
   modelConfidencePct: 95,
   confidenceLabel: "HIGH",
+  confidenceTone: "high",
+  strengthLabel: "STRONG",
+  strengthTone: "strong",
+  modelScorePct: 95,
+  probUpPct: 83.5,
+  probDownPct: 16.5,
+  predictedMovePct: 0.85,
+  moveLabel: "Gain",
+  predictionDate: new Date().toISOString(),
   price: 854.5,
   volume: 125430,
   generatedAt: new Date().toISOString(),
   timeframe: "1W",
   fromCache: false,
+  pastFiveDays: [],
+  fundamentals: { closePrice: 854.5, car: 12, npl: 2 },
+  technical: { modelType: "Ensemble", lookbackDays: 520, rows: 221, decisionThreshold: 0.5 },
   features: [
     { label: "Price Momentum (14d)", scoreText: "28.0%", status: "POSITIVE" },
     { label: "Volume Trend", scoreText: "22.0%", status: "POSITIVE" },
   ],
 });
 
-const Momentum = () => {
+export default function Momentum() {
   const {
     companyOptions,
     defaultCompany,
@@ -271,8 +404,8 @@ const Momentum = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [loadingSignal, setLoadingSignal] = useState(false);
   const [signalView, setSignalView] = useState<MomentumView | null>(null);
-  const [isMock, setIsMock] = useState(false);
   const [predictionError, setPredictionError] = useState<string | null>(null);
+  const [showTech, setShowTech] = useState(false);
 
   const selectedCompany = useMemo(() => {
     if (selectedSymbol) {
@@ -290,7 +423,6 @@ const Momentum = () => {
     const fetchSignal = async () => {
       setLoadingSignal(true);
       setPredictionError(null);
-      let useMock = false;
 
       try {
         let payload: unknown;
@@ -309,7 +441,6 @@ const Momentum = () => {
         const parsed = parseMomentumResponse(payload, selectedCompany.symbol);
         if (!parsed) {
           setSignalView(null);
-          setIsMock(false);
           setPredictionError(
             `Prediction data is not available for ${selectedCompany.symbol} yet.`,
           );
@@ -321,7 +452,6 @@ const Momentum = () => {
         if (cancelled) return;
         if (MarketPreferenceService.isPredictionUnavailableError(error)) {
           setSignalView(null);
-          setIsMock(false);
           setPredictionError(
             `Prediction is unavailable for ${selectedCompany.symbol} right now.`,
           );
@@ -330,12 +460,10 @@ const Momentum = () => {
         }
 
         console.warn("Falling back to simulated momentum view:", error);
-        useMock = true;
         setPredictionError("Live prediction failed. Showing simulated signal.");
         setSignalView(buildMockMomentum(selectedCompany.symbol));
       }
 
-      setIsMock(useMock);
       setLoadingSignal(false);
     };
 
@@ -346,21 +474,25 @@ const Momentum = () => {
     };
   }, [selectedCompany]);
 
+  const tone: SignalTone = signalView?.tone ?? "neutral";
   const gaugeValue = useMemo(() => {
     if (!signalView) return 0.5;
-    return clamp(signalView.probabilityPct / 100, 0, 1);
+    switch (signalView.strengthTone) {
+      case "strong":
+        return 0.9;
+      case "medium":
+        return 0.55;
+      default:
+        return 0.25;
+    }
   }, [signalView]);
-
-  const tone: SignalTone = signalView?.tone ?? "neutral";
-  const gaugeDirection =
-    tone === "buy" ? "UP" : tone === "sell" ? "DOWN" : "NEUTRAL";
 
   return (
     <div className="m2-page">
       <header className="m2-header">
         <div className="m2-title-wrap">
-          <h2>Momentum Engine</h2>
-          <p>Next-week directional prediction with AI-powered signals</p>
+          <h2>{signalView?.symbol || selectedCompany?.symbol || "Symbol"}</h2>
+          <p>Prediction Date: {formatDate(signalView?.predictionDate)}</p>
         </div>
 
         <div className="m2-select-wrap">
@@ -393,115 +525,153 @@ const Momentum = () => {
         </div>
       </header>
 
-      <div className="m2-grid">
-        <section className={`m2-card m2-signal-card tone-${tone}`}>
-          <p className="m2-kicker">Directional Signal</p>
-
-          {loadingSignal ? (
-            <div className="m2-loader">
-              <BiLoaderAlt className="spin-icon" />
-              <span>Loading momentum signal...</span>
-            </div>
-          ) : predictionError && !signalView ? (
-            <div className="m2-error">
-              <strong>Prediction Unavailable</strong>
-              <span>{predictionError}</span>
-            </div>
-          ) : (
-            <>
-              <MomentumGauge
-                value={gaugeValue}
-                direction={gaugeDirection}
-              />
-
-              <div className="m2-score-block">
-                <h3 className={tone}>
-                  {signalView?.score && signalView.score > 0 ? "+" : ""}
-                  {signalView?.score ?? 0}
-                </h3>
-                <p>Momentum Score</p>
-                <div className={`m2-badge ${tone}`}>
-                  {signalView?.label || "Neutral"}
+      {loadingSignal ? (
+        <div className="m2-loader">
+          <BiLoaderAlt className="spin-icon" />
+          <span>Loading momentum signal...</span>
+        </div>
+      ) : predictionError && !signalView ? (
+        <div className="m2-error">
+          <strong>Prediction Unavailable</strong>
+          <span>{predictionError}</span>
+        </div>
+      ) : (
+        <>
+          <section className="m2-hero">
+            <div className={`m2-card m2-hero-card tone-${tone}`}>
+              <div className="m2-card-head">
+                <h3>Signal Overview</h3>
+              </div>
+              <div className="m2-stat-table">
+                <div className="m2-stat-row">
+                  <span className="label">Probability</span>
+                  <div className="m2-stat-values m2-prob-inline">
+                    <div className="prob up">
+                      <span className="prob-arrow">▲</span>
+                      <span>{formatPercent(signalView?.probUpPct)}</span>
+                    </div>
+                    <div className="prob down">
+                      <span className="prob-arrow">▼</span>
+                      <span>{formatPercent(signalView?.probDownPct)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="m2-stat-row">
+                  <span className="label">Confidence</span>
+                  <span className="m2-stat-text">
+                    {signalView?.confidenceLabel || "--"}
+                  </span>
+                </div>
+                <div className="m2-stat-row">
+                  <span className="label">Latest Close Price</span>
+                  <span className="m2-stat-number neutral">
+                    {formatCurrency(signalView?.fundamentals.closePrice ?? undefined)}
+                  </span>
+                </div>
+                <div className="m2-stat-row">
+                  <span className="label">Model Score</span>
+                  <span className="m2-stat-number neutral">
+                    {signalView?.modelScorePct ? `${signalView.modelScorePct.toFixed(1)}%` : "--"}
+                  </span>
                 </div>
               </div>
-            </>
-          )}
-        </section>
 
-        <aside className={`m2-card m2-metrics-card tone-${tone}`}>
-          <p className="m2-kicker">Model Metrics</p>
-
-          <div className="m2-metric-row">
-            <span>Prediction Probability</span>
-            <strong>{signalView ? `${signalView.probabilityPct.toFixed(1)}%` : "--"}</strong>
-          </div>
-
-          <div className="m2-metric-row">
-            <span>Model Confidence</span>
-            <strong>{signalView ? `${signalView.modelConfidencePct.toFixed(1)}%` : "--"}</strong>
-          </div>
-
-          <div className="m2-confidence-track">
-            <div
-              className="m2-confidence-fill"
-              style={{ width: `${signalView?.modelConfidencePct ?? 0}%` }}
-            />
-          </div>
-
-          <div className="m2-state-block">
-            <div className="m2-state-row">
-              <span>Price</span>
-              <strong>{formatCurrency(signalView?.price)}</strong>
             </div>
-            <div className="m2-state-row">
-              <span>Volume</span>
-              <strong>{formatVolume(signalView?.volume)}</strong>
+
+            <div className="m2-card m2-gauge-card">
+              <div className="m2-gauge-title">Signal Strength</div>
+              <MomentumGauge
+                value={gaugeValue}
+                direction={signalView?.direction ?? "NEUTRAL"}
+              />
             </div>
-            <div className="m2-state-row">
-              <span>Confidence</span>
-              <strong>{signalView?.confidenceLabel || "--"}</strong>
+          </section>
+
+          <section className="m2-card m2-table-card">
+            <div className="m2-card-head">
+              <div>
+                <h3>Past 5 Days</h3>
+              </div>
             </div>
-          </div>
+            <div className="m2-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Open</th>
+                    <th>High</th>
+                    <th>Low</th>
+                    <th>Close</th>
+                    <th>Volume</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(signalView?.pastFiveDays ?? []).map((row, idx) => (
+                    <tr key={`${row.date}-${idx}`}>
+                      <td>{formatDate(row.date)}</td>
+                      <td>{formatPrice(toNumber(row.open))}</td>
+                      <td>{formatPrice(toNumber(row.high))}</td>
+                      <td>{formatPrice(toNumber(row.low))}</td>
+                      <td>{formatPrice(toNumber(row.close))}</td>
+                      <td>{formatVolume(toNumber(row.volume) ?? undefined)}</td>
+                    </tr>
+                  ))}
+                  {(!signalView?.pastFiveDays || !signalView.pastFiveDays.length) && (
+                    <tr>
+                      <td colSpan={6} className="m2-empty">No history available.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-          <div className="m2-meta">
-            <span>Generated: {formatDate(signalView?.generatedAt)}</span>
-            <span>Timeframe: {signalView?.timeframe || "--"}</span>
-            <span>
-              {predictionError && signalView
-                ? predictionError
-                : isMock
-                  ? "Simulated signal"
-                  : signalView?.fromCache
-                    ? "Loaded from cache"
-                    : "Fresh signal"}
-            </span>
-          </div>
-        </aside>
-      </div>
-
-      <section className="m2-card m2-features-card">
-        <p className="m2-kicker">Top Influencing Features</p>
-
-        <div className="m2-feature-grid">
-          {(signalView?.features || []).map((feature) => (
-            <div
-              key={feature.label}
-              className={`m2-feature-item ${feature.status.toLowerCase()}`}
+          <section className="m2-card m2-tech-card">
+            <button
+              type="button"
+              className="m2-tech-toggle"
+              onClick={() => setShowTech((prev) => !prev)}
             >
-              <div className="m2-feature-head">
-                <span>{feature.label}</span>
-                <span>{feature.scoreText}</span>
+              Technical Details
+              <IoIosArrowDropdown className={showTech ? "rotate" : ""} />
+            </button>
+            {showTech && (
+              <div className="m2-tech-grid">
+                <div>
+                  <span>Status</span>
+                  <strong>{signalView?.fromCache ? "Cached Result" : "Live"}</strong>
+                </div>
+                <div>
+                  <span>Timeframe</span>
+                  <strong>{signalView?.timeframe || "1W"}</strong>
+                </div>
+                <div>
+                  <span>Updated</span>
+                  <strong>{formatTime(signalView?.generatedAt)}</strong>
+                </div>
+                <div>
+                  <span>Model Type</span>
+                  <strong>{signalView?.technical.modelType || "--"}</strong>
+                </div>
+                <div>
+                  <span>Lookback Days</span>
+                  <strong>{signalView?.technical.lookbackDays ?? "--"}</strong>
+                </div>
+                <div>
+                  <span>Data Rows</span>
+                  <strong>{signalView?.technical.rows ?? "--"}</strong>
+                </div>
+                <div>
+                  <span>Probability Split</span>
+                  <strong>
+                    Up: {formatPercent(signalView?.probUpPct)} | Down: {formatPercent(signalView?.probDownPct)}
+                  </strong>
+                </div>
               </div>
-              <div className="m2-feature-line" />
-              <div className={`m2-feature-status ${feature.status.toLowerCase()}`}>
-                {feature.status}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
-};
-
-export default Momentum;
+}
